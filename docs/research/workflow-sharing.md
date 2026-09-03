@@ -70,6 +70,28 @@ from the engine's license. Recommendation: consider a future separately running
 ComfyUI application adapter using its documented API. Do not vendor its engine,
 unlicensed workflows or model assets into L1ght5p33d.
 
+## Public OpenAdapt references
+
+Follow-up search on 2026-09-03 confirmed that OpenAdapt publishes a
+[public workflow reference catalog](https://openadapt.ai/workflows) and a
+[template gallery](https://openadapt.ai/templates). The catalog covers synthetic
+OpenEMR, Frappe Lending and openIMIS environments and explicitly calls itself a
+reference catalog, not a marketplace. The gallery also includes descriptive
+patterns that require recording and qualification on the user's own application.
+
+There are actual downloadable bundles, including the
+[MockMed triage workflow](https://github.com/OpenAdaptAI/openadapt-flow/blob/main/public-demo/evidence-packs/mockmed-triage-v3/artifacts/bundle/workflow.json)
+and its [complete evidence pack and setup](https://github.com/OpenAdaptAI/openadapt-flow/blob/main/public-demo/README.md).
+The MockMed pack is MIT-licensed and contains a schema-2 workflow, local templates,
+recording and verification evidence for its pinned synthetic environment.
+These deliberately published references coexist with private user-owned bundles.
+Private-by-default does not mean that all OpenAdapt workflows are private.
+
+Native Flow bundles are not directly accepted by the current L1ght5p33d catalog
+installer: it requires the project's ASCII envelope, provider configuration and
+local permissions, and does not import arbitrary template directories. Reuse
+requires explicit adaptation and environment qualification.
+
 ## OpenAdapt Agent
 
 [OpenAdapt Agent](https://github.com/OpenAdaptAI/openadapt-agent) is especially

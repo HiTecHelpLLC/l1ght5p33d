@@ -26,6 +26,14 @@ audit of all branches or every OpenAdapt deployment.
 
 Existing capabilities include:
 
+- [OpenAdapt's public workflow reference catalog](https://openadapt.ai/workflows)
+  and [template gallery](https://openadapt.ai/templates) publish synthetic
+  references and workflow patterns. Actual compiled files include the
+  [MockMed triage bundle](https://github.com/OpenAdaptAI/openadapt-flow/tree/main/public-demo/evidence-packs/mockmed-triage-v3/artifacts/bundle).
+  Follow-up search on 2026-09-03 confirmed these public artifacts; private user
+  bundles do not imply that all OpenAdapt workflows are private. The catalog
+  explicitly describes itself as a reference catalog, not a marketplace, and
+  does not establish the P2P community-distribution service considered here.
 - [OpenAdapt Agent distribution](https://github.com/OpenAdaptAI/openadapt-agent/blob/main/docs/DISTRIBUTION.md)
   distinguishes its public MCP server package from operator-owned bundles.
   Registry listings advertise the capability; private workflow bundles stay in
