@@ -14,10 +14,12 @@
 ## Checklist
 
 - [ ] PR title uses Conventional Commit format
-- [ ] `ruff check openadapt_flow` and `ruff format --check openadapt_flow` pass
+- [ ] Creator package `ruff check src tests` and `ruff format --check src tests` pass
 - [ ] `mypy` passes
 - [ ] `pytest -q` passes locally
 - [ ] Tests added/updated for behavior changes
+- [ ] No private music, profiles, credentials or captured personal images included
+- [ ] Outcome claims distinguish input delivery, UI readback and persistence
 - [ ] Docs updated (README/DESIGN/docs) if behavior or contracts changed
 - [ ] If this touches the identity gate / resolution ladder / halt logic, I
       explained why the never-false-accept invariant still holds

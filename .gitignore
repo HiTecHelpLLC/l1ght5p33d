@@ -72,3 +72,28 @@ paper/build/
 # near-miss. Negate the committed template so it stays tracked.
 .env.*
 !.env.example
+
+# L1ght5p33d private operator state and environments
+**/.bootstrap/
+**/.venv/
+/creator-state/
+/profiles/
+/calibration/
+/recordings/
+*.token
+*.private.json
+*.key
+/packages/l1ght5p33d/dist/
+
+
+/artifacts-l1ght5p33d*
+**/.wheel-test/
+/packages/l1ght5p33d/results.xml
+/packages/l1ght5p33d/audit.json
+/packages/l1ght5p33d/licenses.json
+/packages/l1ght5p33d/runtime-constraints.txt
+**/.kubo-test/
+
+
+# Historical local build reports are not project sources
+/artifacts-createrelay*

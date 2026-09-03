@@ -1,0 +1,10 @@
+name: Application adapter request
+description: Propose a reusable creation workflow
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Application and workflow
+      description: Describe the API/accessibility surface and how the expected effect can be verified.
+    validations:
+      required: true

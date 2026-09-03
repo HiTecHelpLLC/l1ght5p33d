@@ -1,0 +1,22 @@
+name: L1ght5p33d bug
+description: Report a reproducible local workflow or adapter failure
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and observed behavior
+      description: Include version, OS, provider, step ID and a redacted error classification.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Harmless reproduction
+      description: Use synthetic fixtures. Do not attach music, cookies, session tokens or private screenshots.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I removed private content and credentials.
+          required: true

@@ -1,0 +1,131 @@
+name: L1ght5p33d CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: l1ght5p33d-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  php-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+        working-directory: integrations/thebest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Check system PHP and sodium
+        run: |
+          php --version
+          php -m
+          php -r 'if (PHP_VERSION_ID < 80200 || !extension_loaded("sodium")) { fwrite(STDERR, "PHP 8.2+ with sodium is required\n"); exit(1); }'
+      - name: Lint the original integration
+        run: |
+          php -l api/workflows/_catalog.php
+          php -l api/workflows/index.php
+          php -l tests/workflow-registry.php
+      - name: Verify signed catalog boundaries
+        run: php tests/workflow-registry.php
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      PYTHONUTF8: '1'
+      OPENADAPT_FLOW_NO_AUTO_INSTALL: '1'
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: packages/l1ght5p33d
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Install exact dependencies
+        run: |
+          python -m pip install uv==0.12.9
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv sync --frozen --extra dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --no-sync python -m playwright install --with-deps chromium
+          exit $LASTEXITCODE
+      - name: Lint and formatting
+        run: |
+          uv run --no-sync ruff check src tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --no-sync ruff format --check src tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --no-sync ruff check ../../scripts/l1ght5p33d_package_check.py ../../scripts/l1ght5p33d_security.py ../../scripts/l1ght5p33d_license_check.py
+          exit $LASTEXITCODE
+      - name: Typed interfaces
+        run: uv run --no-sync mypy
+      - name: Unit, contract, security and real browser fixtures
+        run: uv run --no-sync python -X utf8 -m pytest -q --junitxml=results.xml
+      - name: First-run CLI fixtures
+        run: |
+          uv run --no-sync python -X utf8 -m l1ght5p33d demo browser
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --no-sync python -X utf8 -m l1ght5p33d demo bandlab
+          exit $LASTEXITCODE
+      - name: Actual isolated peer-to-peer workflow transfer
+        run: |
+          uv run --no-sync python ../../scripts/get-kubo-for-tests.py --out-dir .kubo-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($IsWindows) { $kuboExecutable = '.kubo-test/ipfs.exe' }
+          else { $kuboExecutable = '.kubo-test/ipfs' }
+          uv run --no-sync python -X utf8 ../../scripts/qualify-p2p.py --kubo $kuboExecutable
+          exit $LASTEXITCODE
+      - name: Dependency vulnerability scan
+        run: uv run --no-sync pip-audit --skip-editable --format=json --output=audit.json
+      - name: Dependency license inventory
+        run: |
+          uv run --no-sync pip-licenses --format=json --output-file=licenses.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --no-sync python ../../scripts/l1ght5p33d_license_check.py licenses.json
+          exit $LASTEXITCODE
+      - name: Build and inspect real wheel and sdist
+        run: |
+          uv run --no-sync python -m build --outdir dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --no-sync python ../../scripts/l1ght5p33d_package_check.py dist
+          exit $LASTEXITCODE
+      - name: Scan downstream history, current sources and actual archives for secrets
+        run: uv run --no-sync python ../../scripts/l1ght5p33d_security.py --dist dist
+      - name: Install wheel into a fresh environment
+        run: |
+          uv venv .wheel-test --python 3.12
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv export --frozen --no-dev --no-emit-project --no-hashes --output-file runtime-constraints.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($IsWindows) { $wheelPython = '.wheel-test/Scripts/python.exe' }
+          else { $wheelPython = '.wheel-test/bin/python' }
+          uv pip install --python $wheelPython --constraint runtime-constraints.txt (Get-ChildItem dist/*.whl).FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv pip check --python $wheelPython
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $wheelPython -I -c "import l1ght5p33d, pathlib, sys; module = pathlib.Path(l1ght5p33d.__file__).resolve(); assert module.is_relative_to(pathlib.Path(sys.prefix).resolve()); print(module)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $wheelPython -I -X utf8 -m l1ght5p33d demo browser
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $wheelPython -I -X utf8 -m l1ght5p33d demo bandlab
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: l1ght5p33d-${{ matrix.os }}
+          path: |
+            packages/l1ght5p33d/results.xml
+            packages/l1ght5p33d/audit.json
+            packages/l1ght5p33d/licenses.json
+            packages/l1ght5p33d/dist/*

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>L1ght5p33d Studio Fixture</title>
+<style>body{font:16px system-ui;margin:2em;background:#15212c;color:#f3f8fa}button,input,select{font:inherit;padding:.4em;margin:.3em}article{border:1px solid #7bafba;padding:1em;margin:.6em}label{display:inline-block}small{color:#acc}header{margin-bottom:1em}</style>
+<h1>Local Studio Fixture</h1><p>This original test application exercises the documented Studio import contract. It is not BandLab.</p>
+<main aria-label="Studio"><header><label>Project name<input aria-label="Project name" value="Untitled"></label>
+<button>New Project</button><button>Open Project</button>
+<label>Tempo<input type="number" aria-label="Tempo" value="120" min="40" max="240"></label>
+<label>Import Audio/MIDI<input type="file" aria-label="Import Audio/MIDI" accept=".mid,.midi,.wav"></label>
+<button>Save</button></header><output role="status" aria-label="Save status">Unsaved</output>
+<output aria-label="Import status">Ready</output><section aria-label="Tracks"></section></main>
+<script>
+const query=new URLSearchParams(location.search), tracks=document.querySelector('[aria-label="Tracks"]');
+const title=document.querySelector('[aria-label="Project name"]'), tempo=document.querySelector('[aria-label="Tempo"]');
+const saved=document.querySelector('[aria-label="Save status"]'), imported=document.querySelector('[aria-label="Import status"]');
+const instruments=['Standard Drum Kit','Finger Bass','Grand Piano','Acoustic Guitar','String Ensemble'];
+let nextId=1;
+const dirty=()=>saved.textContent='Unsaved';
+function makeTrack(name,kind){
+ const row=document.createElement('article');row.setAttribute('aria-label','Track');row.dataset.kind=kind;row.dataset.id=String(nextId++);
+ const input=(label,value,type='text')=>{const l=document.createElement('label');l.textContent=label;const i=document.createElement('input');i.setAttribute('aria-label',label);i.type=type;if(type==='checkbox')i.checked=value;else i.value=value;i.addEventListener('change',dirty);i.addEventListener('input',dirty);l.append(i);row.append(l);};
+ input('Track name',name);const label=document.createElement('label');label.textContent='Instrument';const select=document.createElement('select');select.setAttribute('aria-label','Instrument');for(const name of instruments){const o=document.createElement('option');o.textContent=name;select.append(o);}select.addEventListener('change',dirty);label.append(select);row.append(label);
+ input('Offset seconds',0,'number');input('Muted',false,'checkbox');const region=document.createElement('span');region.setAttribute('aria-label','Region');region.textContent=kind==='midi'?'MIDI region':'Audio region';row.append(region);tracks.append(row);dirty();return row;
+}
+// Parse actual SMF track chunks and MIDI events, including running status, rather than trusting file count.
+function midiTracks(bytes){
+ const d=new DataView(bytes.buffer), text=(p,n)=>String.fromCharCode(...bytes.slice(p,p+n));
+ if(text(0,4)!=='MThd')throw Error('Invalid MIDI header');let p=8+d.getUint32(4), result=[];
+ const variable=()=>{let v=0,b,n=0;do{if(p>=bytes.length||n++===4)throw Error('Bad variable length');b=bytes[p++];v=(v<<7)|(b&127);}while(b&128);return v;};
+ while(p<bytes.length){if(text(p,4)!=='MTrk')throw Error('Invalid track chunk');const end=p+8+d.getUint32(p+4);p+=8;let running=0,count=0,name='MIDI';
+ while(p<end){variable();let s=bytes[p++];if(s<128){if(!running)throw Error('Bad running status');p--;s=running;}if(s===255){const type=bytes[p++],n=variable();if(type===3)name=text(p,n);p+=n;running=0;}else if(s===240||s===247){const n=variable();p+=n;running=0;}else{running=s;const kind=s>>4,a=bytes[p++];if(kind!==12&&kind!==13){const b=bytes[p++];if(kind===9&&b>0)count++;}}}
+ if(p!==end)throw Error('Invalid MIDI length');if(count)result.push(name);
+ }return result;
+}
+document.querySelector('[type="file"]').addEventListener('change',async event=>{
+ imported.textContent='Importing';try{const file=event.target.files[0];if(!file)return;const bytes=new Uint8Array(await file.arrayBuffer());let names=file.name.toLowerCase().endsWith('.wav')?[file.name]:midiTracks(bytes);const kind=file.name.toLowerCase().endsWith('.wav')?'audio':'midi';
+ if(tracks.children.length+names.length>Number(query.get('track_limit')||16))throw Error('Track limit exceeded');
+ await new Promise(resolve=>setTimeout(resolve,Number(query.get('import_delay')||30)));
+ if(query.has('partial_import'))names=names.slice(0,Math.max(0,names.length-1));
+ for(const name of names)makeTrack(name,kind);imported.textContent='Imported';event.target.value='';
+ }catch(error){imported.textContent='Import failed: '+error.message;}
+});
+title.addEventListener('input',dirty);tempo.addEventListener('input',dirty);
+function serialize(){return {title:title.value,tempo:tempo.value,tracks:[...tracks.children].map(row=>({name:row.querySelector('[aria-label="Track name"]').value,kind:row.dataset.kind,instrument:row.querySelector('select').value,offset_seconds:row.querySelector('[aria-label="Offset seconds"]').value,muted:row.querySelector('[aria-label="Muted"]').checked}))};}
+const buttons=[...document.querySelectorAll('button')];
+buttons.find(b=>b.textContent==='New Project').onclick=()=>{tracks.replaceChildren();dirty();};
+buttons.find(b=>b.textContent==='Open Project').onclick=async()=>{const all=await(await fetch('/api/project')).json(),p=all[title.value];if(!p){saved.textContent='Project not found';return;}tracks.replaceChildren();tempo.value=p.tempo;for(const data of p.tracks){const row=makeTrack(data.name,data.kind);row.querySelector('select').value=data.instrument;row.querySelector('[aria-label="Offset seconds"]').value=data.offset_seconds;row.querySelector('[aria-label="Muted"]').checked=data.muted;}saved.textContent='Saved';};
+buttons.find(b=>b.textContent==='Save').onclick=async()=>{saved.textContent='Saving';await new Promise(resolve=>setTimeout(resolve,40));if(query.has('reject_save')){saved.textContent='Save failed';return;}const response=await fetch('/api/project',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(serialize())});saved.textContent=response.ok?'Saved':'Save failed';};
+if(query.has('missing_selector'))document.querySelector('[type="file"]').setAttribute('aria-label','Changed upload');
+if(query.has('ambiguous_selector'))document.querySelector('header').append(document.querySelector('[type="file"]').cloneNode(true));
+if(query.has('wrong_identity'))document.querySelector('main').setAttribute('aria-label','Unrelated page');
+</script></html>

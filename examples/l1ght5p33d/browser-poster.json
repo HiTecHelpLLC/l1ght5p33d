@@ -1,0 +1,120 @@
+{
+  "schema_version": "l1ght5p33d/v1",
+  "id": "poster-demo",
+  "description": "Create and save a poster in a harmless local browser fixture.",
+  "application": "browser",
+  "configuration": {
+    "url": "http://127.0.0.1:7332",
+    "title_pattern": "L1ght5p33d Poster Studio",
+    "headless": true
+  },
+  "workflow": {
+    "schema_version": 2,
+    "name": "Poster Studio",
+    "params": {
+      "title": "Make something wonderful"
+    },
+    "steps": [
+      {
+        "id": "name_poster",
+        "intent": "name poster",
+        "action": "wait",
+        "api_binding": {
+          "kind": "tool",
+          "url_template": "browser",
+          "method": "fill",
+          "on_unavailable": "halt",
+          "body_template": {
+            "selectors": [
+              {
+                "kind": "label",
+                "name": "Poster title"
+              }
+            ],
+            "text": "{title}"
+          },
+          "effects": [
+            {
+              "kind": "field_equals",
+              "match": {
+                "provider": "browser"
+              },
+              "field": "poster_title",
+              "value": {
+                "param": "title"
+              },
+              "timeout_s": 3
+            }
+          ]
+        }
+      },
+      {
+        "id": "choose_palette",
+        "intent": "choose palette",
+        "action": "wait",
+        "api_binding": {
+          "kind": "tool",
+          "url_template": "browser",
+          "method": "select",
+          "on_unavailable": "halt",
+          "body_template": {
+            "selectors": [
+              {
+                "kind": "label",
+                "name": "Palette"
+              }
+            ],
+            "label": "Sunset"
+          },
+          "effects": [
+            {
+              "kind": "field_equals",
+              "match": {
+                "provider": "browser"
+              },
+              "field": "palette",
+              "value": "Sunset",
+              "timeout_s": 3
+            }
+          ]
+        }
+      },
+      {
+        "id": "save_poster",
+        "intent": "save poster",
+        "action": "wait",
+        "api_binding": {
+          "kind": "tool",
+          "url_template": "browser",
+          "method": "click",
+          "on_unavailable": "halt",
+          "body_template": {
+            "selectors": [
+              {
+                "kind": "role",
+                "role": "button",
+                "name": "Old save label"
+              },
+              {
+                "kind": "role",
+                "role": "button",
+                "name": "Save poster"
+              }
+            ]
+          },
+          "effects": [
+            {
+              "kind": "field_equals",
+              "match": {
+                "provider": "browser"
+              },
+              "field": "saved",
+              "value": "Saved",
+              "timeout_s": 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

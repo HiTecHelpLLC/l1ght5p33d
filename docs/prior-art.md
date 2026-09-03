@@ -238,4 +238,34 @@ Faithful fixture: localhost Studio-style DOM implementing new/open project, temp
 
 Also build a small local browser creative fixture (e.g. scene/card editor with title, layers and verified saved artifact) and Windows UIA fixture (e.g. native editable document/form with a verified state label, plus locally rendered template/OCR fallback). Synthetic inputs should be generated programmatically. CI exercises fixtures, while one documented live command opens the dedicated profile and blocks for normal sign-in/calibration before import. Live validation must still be listed as pending until actually observed.
 
+## Naming and workflow-sharing addendum (2026-09-03)
 
+The CreateRelay name searches above are preserved as historical research. After
+the user's later request for Lightspeed or a leetspeak variant, the selected name
+became **L1ght5p33d**, repository and package slug `l1ght5p33d`. The new
+[name research](research/name-update.md) records the GitHub, PyPI and npm checks:
+the selected spelling had zero GitHub repository-name matches and HTTP 404
+responses from both registries at query time. These are snapshot observations,
+not a reservation, trademark clearance or exhaustive uniqueness claim.
+
+The same search discovered
+[smartcomputer-ai/lightspeed](https://github.com/smartcomputer-ai/lightspeed), an
+Apache-2.0 agent-session orchestration system. The name report documents its
+architecture and why its durable agent-event replay does not replace the
+selected OpenAdapt Flow foundation for learned GUI workflows with postconditions.
+
+The [workflow-sharing appendix](research/workflow-sharing.md) compares SoundFlow,
+ReaPack, ComfyUI and OpenAdapt Agent. Discoverable macros, reusable creation
+graphs, shared packages and MCP workflow libraries are established prior art.
+L1ght5p33d's scope is a general platform to author, find, edit, compose and run
+local automation; BandLab is the first reference integration. Neither workflow
+sharing nor a unique community network is claimed as an invention. The appendix
+also distinguishes engine licenses from individual package licenses and records
+that no commercial scripts or unlicensed workflow content were copied.
+
+The later [registry and P2P research](research/registry-p2p.md) evaluates the
+proposed THEBEST register. It found existing OpenAdapt capture transfer and
+hosted artifact ingest, but no matching public compiled-workflow P2P catalog in
+the targeted search. It recommends reusing Kubo for optional content-addressed
+distribution rather than building a transport protocol; no registry or site
+integration is represented as implemented.

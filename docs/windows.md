@@ -1,6 +1,6 @@
 # Windows execution and calibration
 
-CreateRelay's Windows provider composes pywinauto 0.6.9 with the existing
+L1ght5p33d's Windows provider composes pywinauto 0.6.9 with the existing
 OpenAdapt Flow image matcher and local RapidOCR. It runs on an unlocked,
 interactive Windows desktop. It does not launch applications through workflows,
 steal foreground focus, bypass UAC, or send captured images to an AI service.
@@ -10,10 +10,10 @@ steal foreground focus, bypass UAC, or send captured images to an AI service.
 Install the developer preview, then run:
 
 ```powershell
-createrelay demo windows
+l1ght5p33d demo windows
 ```
 
-Click **CreateRelay Creative Fixture** once when it opens. The command waits up
+Click **L1ght5p33d Creative Fixture** once when it opens. The command waits up
 to 60 seconds for normal foreground activation. It compiles the bundled original
 WinForms fixture with Windows' .NET Framework compiler, creates a local
 calibration image of its synthetic canvas, writes a reviewable ASCII workflow,
@@ -30,7 +30,7 @@ than an independent persisted file. This fixture intentionally has no file,
 network, music, account, or publishing functions.
 
 The installed demo includes its source and requires no repository checkout.
-`examples/createrelay/windows-creative.json` is the same readable shape with
+`examples/l1ght5p33d/windows-creative.json` is the same readable shape with
 placeholder local paths. Use the demo-generated document for actual execution.
 Launching the demo authorizes only its generated fixture document and exact
 digest; it does not grant permission to control other desktop applications.
@@ -39,7 +39,7 @@ digest; it does not grant permission to control other desktop applications.
 
 Configuration requires an exact executable path and a full-match title regular
 expression. An optional PID or HWND narrows the initial attachment. After first
-attachment, CreateRelay pins the PID, process creation time, and HWND. Before
+attachment, L1ght5p33d pins the PID, process creation time, and HWND. Before
 input it checks the executable, title, bounds, display, target-window DPI,
 monitor DPI, visibility and foreground state again. Native handle discovery is
 filtered before UIA inspection, avoiding traversal through unrelated processes.
@@ -79,7 +79,7 @@ repeated. This distinction also applies to slow or unresponsive applications.
 
 ## Personal calibration
 
-Put personal templates under a dedicated folder beneath your local CreateRelay
+Put personal templates under a dedicated folder beneath your local L1ght5p33d
 state directory, outside the repository. Set `template_root` to that folder in
 the locally reviewed workflow configuration. Only PNG files resolved inside that
 folder are readable; traversal, symlink escape, oversized images and low-detail
@@ -104,21 +104,21 @@ separate test requirement.
 Run deterministic contracts without a foreground desktop:
 
 ```powershell
-python -m pytest packages/createrelay/tests/test_windows_provider.py -q
+python -m pytest packages/l1ght5p33d/tests/test_windows_provider.py -q
 ```
 
 Run the real native test from a checkout with the package installed:
 
 ```powershell
-$env:CREATERELAY_WINDOWS_LIVE = "1"
-python -m pytest packages/createrelay/tests/test_windows_live.py -q
+$env:L1GHT5P33D_WINDOWS_LIVE = "1"
+python -m pytest packages/l1ght5p33d/tests/test_windows_live.py -q
 ```
 
 The native test explicitly focuses only its own synthetic fixture during setup.
 Some desktop hosts deny this activation. That is an environment limitation:
-use `createrelay demo windows` and click the fixture manually. Automated CI
+use `l1ght5p33d demo windows` and click the fixture manually. Automated CI
 qualification should run the native test with an interactive desktop and should
-not set `CREATERELAY_ALLOW_NO_FOREGROUND`. Developers may set that variable to
+not set `L1GHT5P33D_ALLOW_NO_FOREGROUND`. Developers may set that variable to
 `1` to record an explicit skip on a restricted local host; a skip is never a
 passing native-input qualification.
 

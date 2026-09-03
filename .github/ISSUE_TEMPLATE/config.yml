@@ -1,8 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: Security vulnerability
-    url: https://github.com/OpenAdaptAI/openadapt-flow/security/advisories/new
-    about: Please report security issues privately, not as public issues (see SECURITY.md).
-  - name: Question / discussion
-    url: https://github.com/OpenAdaptAI/openadapt-flow/discussions
-    about: Ask usage questions or discuss ideas here.
+  - name: Report a security vulnerability privately
+    url: https://github.com/HiTecHelpLLC/l1ght5p33d/security/advisories/new
+    about: Please keep credentials and sensitive reproductions out of public issues.

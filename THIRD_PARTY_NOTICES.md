@@ -44,3 +44,46 @@ notice. The package artifacts therefore contain no copied or adapted openIMIS
 material and remain under the declared MIT package license. A Git source
 checkout retains the isolated benchmark and this notice for reproducible
 development evidence.
+
+## L1ght5p33d downstream dependencies
+
+L1ght5p33d additions use MIT and retain the inherited OpenAdapt copyright.
+The creator wheel/sdist contains only packages/l1ght5p33d/src, its license,
+metadata and the committed lock. It does not vendor the inherited AGPL
+benchmark surface, browser profiles, personal media or captured screenshots.
+The GitHub source checkout retains upstream history and its file-local notices.
+
+| Component | Pinned direct version | Declared license | Use |
+| --- | --- | --- | --- |
+| OpenAdapt Flow | 1.34.0 | MIT | Existing replay, IR, verification and durable recovery |
+| Playwright Python | 1.62.0 | Apache-2.0 | Browser selectors, input and dedicated profiles |
+| pywinauto | 0.6.9 | BSD-3-Clause | Windows UIA/Win32 |
+| Mido | 1.3.3 | MIT | MIDI parsing and synthetic fixtures |
+| Pydantic | 2.13.5 | MIT | Typed validation |
+| jsonschema | 4.26.0 | MIT | Strict schema validation |
+| MCP Python SDK | 2.1.1 | MIT | Local MCP transport |
+| Uvicorn | 0.52.4 | BSD-3-Clause | Loopback HTTP service |
+| HTTPX | 0.28.1 | BSD-3-Clause | Local fixture checks |
+| psutil | 7.2.2 | BSD-3-Clause | Exact process identity |
+| cryptography | 50.0.1 | Apache-2.0 OR BSD-3-Clause | Ed25519 workflow-catalog signatures |
+
+OpenCV, RapidOCR/ONNX Runtime, Pillow, NumPy and other transitive components
+are resolved in packages/l1ght5p33d/uv.lock. Distribution-level license metadata
+is inventoried in docs/third-party-inventory.json. Some separate dependencies
+(including certifi and build tooling) use MPL-2.0. They are installed unmodified
+from their own distributions; their licenses and source notices remain with
+those distributions. The creator MIT license does not relicense dependencies
+or all native libraries bundled by upstream wheels. Consult each wheel's bundled
+third-party notices when redistributing a combined offline environment.
+
+No OculiX/SikuliX, OpenRPA, Jarvisonix, unlicensed recorder code, personal music,
+or third-party application code was copied into the creator package. The
+packaged browser/WinForms fixtures and generated MIDI are original MIT examples.
+The pinned Gitleaks executable is downloaded only for development scanning,
+hash-verified, and is not distributed as part of the creator package.
+
+Optional peer-to-peer workflow retrieval uses a separately installed
+[Kubo](https://github.com/ipfs/kubo) 0.43.0 daemon (Apache-2.0 OR MIT), through its
+loopback HTTP API. No Kubo executable or IPFS source is bundled. THEBEST registry
+integration files under `integrations/thebest` are original MIT contributions;
+they do not include the THEBEST site's existing proprietary application code.

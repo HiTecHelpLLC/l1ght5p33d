@@ -27,11 +27,11 @@ def build(output_dir: Path) -> Path:
     from importlib.resources import files
 
     source = Path(
-        str(files("createrelay.fixtures").joinpath("CreatorFixture.cs"))
+        str(files("l1ght5p33d.fixtures").joinpath("CreatorFixture.cs"))
     ).resolve(strict=True)
     output_dir = output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    executable = output_dir / "CreateRelayFixture.exe"
+    executable = output_dir / "L1ght5p33dFixture.exe"
     if executable.exists():
         raise FileExistsError("Choose an empty fixture output directory")
     subprocess.run(

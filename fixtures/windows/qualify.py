@@ -13,8 +13,8 @@ import time
 from pathlib import Path
 
 from build_fixture import build
-from createrelay.providers.base import ProviderRefused
-from createrelay.providers.windows import WindowsProvider
+from l1ght5p33d.providers.base import ProviderRefused
+from l1ght5p33d.providers.windows import WindowsProvider
 
 
 def qualify(output: Path, wait_for_focus: float) -> None:
@@ -27,13 +27,13 @@ def qualify(output: Path, wait_for_focus: float) -> None:
         {
             "executable": str(executable),
             "process_id": process.pid,
-            "title_re": "CreateRelay Creative Fixture",
+            "title_re": "L1ght5p33d Creative Fixture",
             "template_root": str(calibration),
             "observables": {"status": {"method": "uia", "auto_id": "statusText"}},
         }
     )
     print(
-        "Click the CreateRelay Creative Fixture window to begin the native test.",
+        "Click the L1ght5p33d Creative Fixture window to begin the native test.",
         flush=True,
     )
     receipts: list[dict] = []

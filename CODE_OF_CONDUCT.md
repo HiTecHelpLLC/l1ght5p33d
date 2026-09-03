@@ -1,4 +1,4 @@
-# Contributor Covenant Code of Conduct
+# L1ght5p33d Contributor Covenant Code of Conduct
 
 ## Our Pledge
 
@@ -51,8 +51,9 @@ an individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement privately through
-a [GitHub Security Advisory](https://github.com/OpenAdaptAI/openadapt-flow/security/advisories/new)
-or by contacting the maintainer [@abrichr](https://github.com/abrichr).
+a [private GitHub report](https://github.com/HiTecHelpLLC/l1ght5p33d/security/advisories/new).
+If that channel is unavailable, request a private maintainer contact in an issue
+without publishing incident details or another person's private information.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
@@ -65,3 +66,6 @@ version 2.1, available at
 https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
 
 [homepage]: https://www.contributor-covenant.org
+
+The inherited upstream version is preserved in
+[docs/upstream/CODE_OF_CONDUCT.md](docs/upstream/CODE_OF_CONDUCT.md).
