@@ -1,0 +1,32 @@
+{
+  "track_limit": 16,
+  "duration_limit_seconds": 900,
+  "track_order": [
+    "drums",
+    "bass",
+    "chords",
+    "keys",
+    "guitar",
+    "strings",
+    "melody",
+    "misc"
+  ],
+  "instruments": {
+    "drums": "Standard Drum Kit",
+    "bass": "Finger Bass",
+    "chords": "Grand Piano",
+    "keys": "Grand Piano",
+    "guitar": "Acoustic Guitar",
+    "strings": "String Ensemble",
+    "melody": "Grand Piano",
+    "misc": "Grand Piano"
+  },
+  "name_template": "{index:02d} {category} - {name}",
+  "reference_offset_seconds": 0.0,
+  "mute_reference": true,
+  "quantize": false,
+  "velocity_processing": "preserve",
+  "effects": [],
+  "pan": null,
+  "gain": null
+}
