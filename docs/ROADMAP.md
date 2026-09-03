@@ -1,6 +1,7 @@
 # L1ght5p33d roadmap
 
-This roadmap describes planned work, not delivered capabilities. Acceptance uses
+Future milestones below are planned work. The current-preview section describes
+the implemented scope; release notes record its completed checks. Acceptance uses
 verified outcomes and reproducible fixtures; live qualification is separate.
 L1ght5p33d is a general foundation for creating, discovering, adapting, combining
 and running reusable computer workflows. BandLab is the first application
@@ -12,49 +13,54 @@ reference; the workflow library and provider contracts serve other applications.
 checks the local environment, shows the complete plan, obtains human approval,
 executes it on Windows and returns a verified result or actionable recovery.**
 
-The existing OpenAdapt Flow foundation remains useful. The immediate work is to
-connect the implemented components and qualify a real creator outcome:
+The v0.2.0 companion now connects on-demand curated downloads, exact pack
+verification, a managed cache and the local review page. It keeps author identity,
+curator test scope and human approval separate. The next useful milestone is a
+qualified everyday creator outcome beyond the fixed poster fixture:
 
-1. Unify delivery of workflow bytes, review metadata and signed test evidence.
-   The public curated library currently uses a separate index/attestation format;
-   the runtime's catalog downloader does not consume that curator attestation.
-   Carry author identity, curator review scope and local execution approval as
-   separate facts through discovery, staging and the final run plan.
-2. Provide a guided local review/run experience. Users should supply their goal
-   and necessary inputs, then inspect the actual steps and approve. Catalog/key
-   setup, Kubo configuration and SDK recovery should not be the ordinary user
-   journey. Preserve explicit approval and fail closed when goals are ambiguous.
-3. Qualify the original BandLab task in an authorized live session: import at
+1. Qualify the original BandLab task in an authorized live session: import at
    least one synthetic MIDI, verify its track/region and saved state, and document
    recovery from an interrupted import. The admitted poster example is a test
    fixture, not evidence of a completed everyday creator task.
-4. Release a distinct runtime version containing the newer per-run approval
-   controls and qualify the library against it. Current `main` and immutable
-   `v0.1.0` assets have different capabilities while sharing a package version.
-5. Give the product a front-facing THEBEST page with a clear Windows installation
+2. Qualify the library against the distinct v0.2.0 runtime and record new evidence
+   for that environment. Existing curator signatures retain their original
+   source-runtime and fixture scope; release packaging cannot extend a signature.
+3. Give the product a front-facing THEBEST page with a clear Windows installation
    path, reviewed workflow examples, source links and precise maturity labels.
    The website explains and distributes; the installed companion owns local
    execution and approval. Apply THEBEST's visual-design and publication process.
-6. Connect the public register and optional P2P delivery after the exact-pack
-   verification path works. Define hosting/pinning availability, key rotation,
+4. Deploy the public register and connect optional P2P delivery. Define
+   hosting/pinning availability, key rotation,
    revocation and stale application compatibility before broad distribution.
 
 Keep scope Windows-first. Local Windows 11 fixture evidence, hosted Windows
 Server/Ubuntu CI and WSL are distinct environments. Neither headless Ubuntu CI
 nor access to WSL establishes native Linux desktop automation support.
 
-These are refinement priorities, not claims that the guided product or public
-register already exists. No new execution engine is needed for this milestone.
+The guided local companion uses the public GitHub library today. These priorities
+do not imply an active THEBEST website register or public P2P service. No new
+execution engine is needed for this milestone.
 
 ## Current developer preview
 
+- On-demand THEBEST curated packs with exact detached-signature, review and
+  evidence verification. The initial public collection has one browser fixture.
+- Local review page with a summary, complete steps, variable editing and authored
+  workflow copies. Exact single-use approval stays with the human; copies do not
+  inherit the source curator signature.
+- Managed download cache: 90 days without execution by default, configurable
+  1-3650 days. Active, pinned, modified and untracked content is protected;
+  authored copies and receipts are outside eviction. Only execution refreshes use.
+- `try` prepares the fixed local fixture and review page; `serve` uses managed
+  defaults, with `prepare_task`, `get_task_status` and `get_cache_status` for AI.
 - Native OpenAdapt Flow workflows inside strict ASCII JSON registry envelopes.
 - Local folder discovery with descriptions, parameters, steps and document
   digests through the CLI, JSON-RPC and MCP. Files can be edited and shared
   through Git; reviewed same-application subflows can be combined with `includes`.
 - A signed-catalog CLI client with text search and exact-version installation
   of one verified JSON block through local Kubo. Installation grants no execution
-  permission and does not install provider code.
+  permission and does not install provider code. These advanced imports go to the
+  operator's library, outside the managed curated-pack cache.
 - Registered browser, Windows and BandLab providers; no workflow shell command.
 - CLI, local JSON-RPC and token-protected loopback MCP control.
 - Typed effects, receipts, active pause/step/resume/abort, and an SDK path for
@@ -106,7 +112,7 @@ automation formats remain separate work.
   another raw-coordinate recorder.
 - Capture bounded before/after state, timing, identity and local anchors while
   excluding credential entry.
-- Add an optional local UI for variables, composition, diffs and checkpoints.
+- Extend the local review UI with composition, richer diffs and checkpoint recovery.
 
 The preview does not have an integrated one-click record-to-registry workflow.
 

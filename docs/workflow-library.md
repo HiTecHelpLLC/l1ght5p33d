@@ -5,11 +5,52 @@ to discover an existing task, supply variables, adapt selectors or effects, and
 combine compatible subflows. BandLab import, a browser poster editor and a Windows
 creative fixture are reference workflows for the same general provider system.
 
-The preview implements local discovery and a signed remote catalog client.
-Workflows can be shared through GitHub or retrieved by content address through a
-local Kubo node. Downloaded files still require review and local execution
-approval. A hosted community register, package installation for executable
-providers and automatic format conversion require further work.
+The v0.2.0 companion discovers curated THEBEST packs from the public GitHub
+workflow library, verifies detached review signatures, and downloads on demand
+into a managed cache. An AI prepares the task; the user reviews its summary and
+approves through the local page, with every step available to inspect or edit.
+Local authored files and advanced signed
+catalog/Kubo imports remain available. A hosted community register, executable
+provider installation and automatic format conversion require further work.
+
+## Prepare a reviewed public pack
+
+Start `l1ght5p33d serve` with its managed defaults and connect your AI client.
+`search_curated_workflows` finds candidate packs; `prepare_task` accepts an exact
+ID/version, declared variables and `source="thebest"`. It reuses valid cached
+bytes or downloads and verifies the pack, then returns a local review URL over
+HTTP MCP. Line-oriented `rpc` returns the plan and local terminal-review arguments;
+it does not start a web server.
+`get_task_status(plan_id)` follows the review and execution outcome. Use
+`l1ght5p33d try` for the fixed local poster fixture and its first review page.
+
+The source is [the public curated GitHub repository](https://github.com/HiTecHelpLLC/l1ght5p33d-workflows),
+currently with one `poster-demo@0.1.0` synthetic browser fixture. Its `main` index
+is an untrusted list of candidates. The runtime's shipped THEBEST key verifies
+the curator identity/role, expiry and exact workflow, review and evidence hashes.
+It does not trust a key or schema downloaded with a pack. Signed qualification
+scope, author provenance and local execution approval remain separate facts.
+The existing signature records the older pinned runtime's Windows 11 synthetic
+browser test; it makes no live BandLab or blanket v0.2.0 qualification claim.
+
+The review page starts with a summary and provides the complete actual steps.
+Changing variables creates a new plan. Editing the full workflow saves an
+authored local copy, preserves the original and does not transfer the curator's
+signature. Every execution needs explicit, single-use approval bound to that
+plan's workflow, inputs and permissions. There is no run-approval MCP method, but
+an authorized client with the review URL could imitate the local approval POST.
+Agents must leave confirmation to the user. This is not a cryptographic
+human-presence check; see the [review trust boundary](companion.md#review-trust-boundary).
+
+Downloaded packs expire from the cache after 90 days without execution by
+default; set `--cache-retention-days` on `serve` to 1-3650 days. Only actual
+execution refreshes last use. Active, pinned, modified and untracked content is
+protected, and authored copies and receipts are never expired by this cache.
+Signature expiry is independent and is checked again before cached use. Inspect
+`get_cache_status` for cache state. See the [companion guide](companion.md).
+
+THEBEST's website register and public P2P registry are not deployed. The public
+GitHub library is the connected source; no public pinning service is promised.
 
 ## Discover local workflows
 
@@ -36,9 +77,10 @@ An AI client can call `list_workflows` and `describe_workflow` through the
 not a computer-wide file search. The CLI `list` command includes descriptions;
 the separate `catalog` command searches a configured signed remote register.
 
-## Discover and download shared files
+## Advanced: operator-configured catalogs and Kubo
 
-AI clients can call `search_workflow_catalog` and `download_workflow` after the
+For native signed catalogs, AI clients can call `search_workflow_catalog` and
+`download_workflow` after the
 operator starts MCP/JSON-RPC with `--discovery discovery.json`. They do the
 searching; the user reviews the proposed execution, not a list of manual search
 instructions. The startup configuration has this shape (replace the example
@@ -57,6 +99,9 @@ URL and key with a reviewed publisher):
   "kubo_url": "http://127.0.0.1:5001"
 }
 ```
+
+These imports go into the operator's workflow library, not the companion's
+managed cache, and are not subject to its 90-day retention policy.
 
 The AI cannot change these trust roots through the control interface. Search
 returns candidate metadata and individual source failures, never automatic
@@ -180,8 +225,9 @@ Dry-run also requires the grant and delivers no input. Runtime values must be
 declared parameters; credential variables are refused. Authenticate manually.
 
 The illustrative example files expect their fixtures and local paths to exist.
-For a complete first run, use `l1ght5p33d demo browser`, `l1ght5p33d demo bandlab`
-or `l1ght5p33d demo windows`; these prepare their harmless fixtures and grants.
+For the guided first run, use `l1ght5p33d try`; it prepares its harmless fixture
+and leaves approval to the user. `demo browser`, `demo bandlab` and `demo windows`
+remain separate developer test commands with fixed synthetic content.
 
 AI clients can set variables, propose a readable patch, monitor receipts, and
 pause, step or abort runs. Executable edits need fresh local approval. In-process

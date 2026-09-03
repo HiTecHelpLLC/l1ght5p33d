@@ -167,7 +167,14 @@ def test_mcp_requires_token_and_defends_origin(tmp_path):
         response = client.post("/mcp", json=body, headers=headers)
         assert response.status_code == 200, response.text
         names = {tool["name"] for tool in response.json()["result"]["tools"]}
-        assert len(names) == 20
+        assert len(names) == 24
+        assert {
+            "prepare_task",
+            "search_curated_workflows",
+            "get_task_status",
+            "get_cache_status",
+        } <= names
+        assert "approve_review_plan" not in names
         assert {"run_workflow", "run_step", "approve_workflow_patch"} <= names
         result = client.post(
             "/mcp",

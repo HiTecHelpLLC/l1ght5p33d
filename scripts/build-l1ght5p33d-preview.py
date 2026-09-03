@@ -9,7 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "packages" / "l1ght5p33d"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def build(destination: Path) -> Path:
@@ -54,6 +54,7 @@ def build(destination: Path) -> Path:
         "trademark-disclaimer.md",
         "workflow-library.md",
         "workflow-review.md",
+        "companion.md",
         "third-party-inventory.json",
         "registry-operations.md",
     ):
@@ -74,7 +75,7 @@ def build(destination: Path) -> Path:
             output.write(path, f"{prefix}/{relative.as_posix()}")
         output.writestr(
             f"{prefix}/PREVIEW.txt",
-            "L1ght5p33d 0.1.0 Windows developer preview\n\n"
+            f"L1ght5p33d {VERSION} Windows developer preview\n\n"
             "Install Python 3.12. Extract this ZIP, open PowerShell in its folder,\n"
             "and run .\\scripts\\install-l1ght5p33d.ps1. An internet connection is\n"
             "required for the locked dependencies and Chromium download.\n\n"

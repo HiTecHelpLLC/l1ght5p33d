@@ -4,10 +4,11 @@
 
 **Create, discover, adapt, combine and run reusable computer workflows.**
 
-L1ght5p33d is a **Windows-first local execution companion for AI**, currently a
-developer preview. The next product milestone is one complete guided experience:
-find a reviewed workflow, verify its exact version, show every proposed step,
-obtain the user's approval, execute locally, and report the verified outcome.
+L1ght5p33d is a **Windows-first local execution companion for AI**. The v0.2.0
+developer preview connects workflow discovery, verified downloads, local review
+and execution: the AI prepares the task, you review its summary and approve,
+and the companion runs it locally with observable outcome checks. All steps are
+available to inspect or edit before approval.
 
 L1ght5p33d extends OpenAdapt Flow with a local workflow library, application
 adapters and controls for people and AI systems. It handles repetitive work in
@@ -20,32 +21,28 @@ scope. A browser poster workflow and Windows creative-brief workflow demonstrate
 the same application-independent core. More workflows belong in the library;
 new applications belong behind adapters, without changing the execution engine.
 
-The preview discovers workflows installed in a local directory. Optional signed
-catalogs let you find versioned workflows and download them through a local IPFS
-node. THEBEST is the proposed public register; its default-disabled integration
-is included for operator deployment. Existing SoundFlow, REAPER or n8n recipes
-still require their own runner or an explicit integration. See
-[creating and sharing a workflow library](docs/workflow-library.md).
+The built-in THEBEST source is the public
+[curated GitHub library](https://github.com/HiTecHelpLLC/l1ght5p33d-workflows).
+It currently contains **one synthetic browser poster workflow**. The companion
+downloads packs on demand, verifies their curator signature and exact bytes,
+and keeps inactive downloads in a managed local cache. A signed review never
+approves a run. See the [companion guide](docs/companion.md).
 
-The separate [curated workflow library](https://github.com/HiTecHelpLLC/l1ght5p33d-workflows)
-contains one signed browser fixture workflow. Its detached THEBEST review
-attestations are not yet consumed by runtime discovery. Connecting that review
-evidence to the execution plan is the immediate integration priority. THEBEST
-currently has a local registry draft; a public product page and active registry
-have not been published. See the [product refinement milestone](docs/ROADMAP.md#next-product-milestone).
+The THEBEST website register and public P2P registry are **not deployed**.
+Advanced operator-configured signed catalogs can still retrieve workflows through
+local Kubo into the operator's own library, outside the managed cache. SoundFlow,
+REAPER and n8n recipes require their own runner or an explicit integration.
 
-**v0.1.0 developer preview, Windows 11 first.** Production-oriented controls are
-implemented, but this is not a blanket production qualification. The complete
-BandLab path is tested against a local functional fixture; live Studio selectors
-still need operator calibration. Native input requires an interactive foreground
-window. See [acceptance and limits](docs/acceptance.md).
+**Windows 11 first; developer preview.** The BandLab sequence is exercised against
+a local fixture; authenticated live BandLab and native Windows input qualification
+remain pending. The curated signature covers its recorded Windows 11 synthetic
+browser test and older pinned runtime, not blanket v0.2.0 compatibility. Hosted
+Ubuntu CI is neither local WSL evidence nor native Linux desktop qualification;
+WSL GUI support is not claimed. See [acceptance and limits](docs/acceptance.md).
 
-The current `main` branch includes the complete per-run approval interface added
-after the immutable `v0.1.0` release. Those release assets do not contain the new
-interface, although the development package still reports `0.1.0`. Use this
-checkout's installer for current development; the next release needs a distinct
-version and matching workflow qualification. Hosted Ubuntu CI results describe
-automated checks, not native Linux desktop support or WSL GUI qualification.
+The immutable `v0.1.0` release predates this guided companion. Use the current
+checkout for v0.2.0 development; release notes identify the completed checks and
+published assets for each release.
 
 ## Windows quick start
 
@@ -55,14 +52,21 @@ Install Python 3.12 and Git, then run in PowerShell:
 git clone https://github.com/HiTecHelpLLC/l1ght5p33d.git
 cd l1ght5p33d
 .\scripts\install-l1ght5p33d.ps1
-.\packages\l1ght5p33d\.venv\Scripts\python.exe -X utf8 -m l1ght5p33d demo browser
-.\packages\l1ght5p33d\.venv\Scripts\python.exe -X utf8 -m l1ght5p33d demo bandlab
+.\packages\l1ght5p33d\.venv\Scripts\python.exe -X utf8 -m l1ght5p33d try
 ```
 
 The installer uses the committed transitive `uv.lock` and downloads Chromium
-once. The demos use synthetic content and local servers. Add `--headful` to watch.
-`demo windows` opens the synthetic desktop fixture; focus it when prompted.
+once. `try` prepares the fixed synthetic poster fixture and opens a local review
+page. Review the summary and explicitly approve the exact plan when ready. All
+steps and inputs are available to inspect or edit; expanding them is optional.
+Opening the page does not approve or run the workflow.
 The CLI activates UTF-8 mode automatically on Windows for upstream checkpoints.
+
+For an AI client, activate the environment and run `l1ght5p33d serve`. It manages
+its local folders by default. `prepare_task` fetches or reuses a verified pack and
+returns the review URL; `get_task_status` follows approval and execution.
+See [MCP setup](docs/mcp.md). The existing `demo browser`, `demo bandlab` and
+`demo windows` commands remain developer fixtures.
 
 Releases contain a wheel, sdist and Windows developer-preview ZIP. No Python or
 browser binary is bundled. `python -m pip install <downloaded-wheel>` also works
@@ -75,9 +79,13 @@ The package is not yet published to PyPI.
   assertions and exception paths through the existing OpenAdapt Flow runtime.
 - CLI and localhost MCP: discover, validate, run, step, pause, resume, abort,
   inspect receipts, and propose a readable workflow patch.
-- AI-facing search and inactive download from operator-pinned catalogs; complete
-  per-run plans with explicit local human confirmation, single-use approval and
-  revalidation of inputs. See [workflow review](docs/workflow-review.md).
+- On-demand THEBEST pack discovery and signature verification, a local review
+  page with editable variables and authored workflow copies, and complete
+  per-run plans with explicit single-use approval. Changing inputs or actions
+  invalidates the old approval. See [workflow review](docs/workflow-review.md).
+- Download cache with a configurable 90-day inactivity period. Actual execution
+  refreshes last use; browsing does not. Active, pinned, modified and untracked
+  content is protected. Authored copies and receipts are outside cache expiry.
 - Playwright role/label selectors, explicit fallback chains and dedicated Chrome
   or Edge profiles. Input delivery and verified outcomes are separate facts.
 - Windows UIA with exact executable/PID/HWND/title/DPI/display/foreground checks;
@@ -152,7 +160,7 @@ synthetic demos grant only their own generated workflow for that run.
 ## AI control and privacy
 
 ```powershell
-l1ght5p33d serve --workflows .\workflows --policy .\policy.private.json
+l1ght5p33d serve
 ```
 
 Connect an MCP client to `http://127.0.0.1:7331/mcp` with an Authorization bearer
@@ -160,6 +168,14 @@ header containing the private session token. The CLI prints the token file's
 location, never its contents. Host/Origin validation and bounded requests protect
 the loopback service. `l1ght5p33d rpc` offers local line-oriented JSON-RPC.
 See [interface documentation](docs/mcp.md).
+
+Use `--workflows`, `--state` or `--policy` to select operator-managed locations,
+and `--cache-retention-days 180` to change download retention (1-3650 days).
+The review flow requires explicit confirmation and exposes no run-approval MCP
+method. Its URL contains a capability, so an authorized client could imitate the
+approval request. Agents must leave confirmation to the user; this is a local
+trust boundary, not cryptographic proof of human presence. See
+[review boundaries](docs/companion.md#review-trust-boundary).
 
 Screenshots stay local and are not returned by the creator MCP tools. No model,
 cloud telemetry or paid provider is configured. Users enter credentials only in

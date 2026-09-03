@@ -10,11 +10,14 @@ import os
 import re
 import secrets
 import sys
+import threading
 import time
+import webbrowser
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from l1ght5p33d import __version__
 from l1ght5p33d.discovery import load_discovery
 from l1ght5p33d.planning import build_run_plan, render_run_plan
 from l1ght5p33d.policy import PermissionDenied, Policy, digest, load_policy
@@ -40,6 +43,175 @@ def _confirm(review: str) -> None:
         raise PermissionDenied("Approval cancelled; no permission granted") from exc
     if answer != "APPROVE":
         raise PermissionDenied("Approval declined; no permission granted")
+
+
+def _run_summary(plan: dict[str, Any]) -> str:
+    """Summarize executable declarations; escape author text for a terminal."""
+
+    def display(value: Any) -> str:
+        encoded = json.dumps(value, ensure_ascii=True)
+        return encoded if len(encoded) <= 400 else encoded[:400] + "... (DETAILS)"
+
+    steps = plan.get("steps", [])
+    operations = list(
+        dict.fromkeys(f"{s.get('provider')}.{s.get('operation')}" for s in steps)
+    )
+    targets = {
+        key: value
+        for key, value in plan.get("targets", {}).items()
+        if key in {"url", "fixture_url", "project_url", "title_pattern", "executable"}
+    }
+    lines = [
+        "Run " + display(plan.get("workflow_id")),
+        "Application: " + display(plan.get("application")),
+        "Target: " + display(targets),
+        "Inputs (including defaults): " + display(plan.get("variables", {})),
+        f"Actions: {len(steps)} declared; " + display(operations),
+    ]
+    effects = [effect for step in steps for effect in step.get("effects", [])]
+    for effect in effects[:5]:
+        lines.append(
+            "Verify "
+            + display(effect.get("field", effect.get("kind")))
+            + " = "
+            + display(effect.get("value", effect.get("expected")))
+        )
+    if len(effects) > 5:
+        lines.append(f"Plus {len(effects) - 5} verification contracts in DETAILS.")
+    roots = plan.get("policy", {}).get("read_roots", [])
+    lines.append("Allowed file reads: " + display(roots))
+    if not plan.get("control_flow", {}).get("inventory_is_execution_order", True):
+        lines.append("Conditional branches or loops: review their paths in DETAILS.")
+    if plan.get("review_blockers"):
+        lines.append("Cannot approve: " + display(plan["review_blockers"]))
+    lines.append("DETAILS shows every action, input, permission and verification.")
+    return "\n".join(lines)
+
+
+def _confirm_run(plan: dict[str, Any]) -> None:
+    print(_run_summary(plan), flush=True)
+    if not sys.stdin.isatty():
+        raise PermissionDenied(
+            "Run approval needs the user's interactive local terminal"
+        )
+    if plan.get("review_blockers"):
+        raise PermissionDenied("Resolve the plan's review blockers before approval")
+    while True:
+        try:
+            answer = input(
+                "Type APPROVE to run, DETAILS to inspect, or anything else to cancel: "
+            )
+        except (EOFError, KeyboardInterrupt) as exc:
+            raise PermissionDenied("Approval cancelled; no permission granted") from exc
+        if answer == "DETAILS":
+            print(render_run_plan(plan), flush=True)
+        elif answer == "APPROVE":
+            return
+        else:
+            raise PermissionDenied("Approval declined; no permission granted")
+
+
+def _retention_days(value: str) -> int:
+    try:
+        days = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "Cache retention must be 1..3650 days"
+        ) from exc
+    if not 1 <= days <= 3650:
+        raise argparse.ArgumentTypeError("Cache retention must be 1..3650 days")
+    return days
+
+
+def _session_token(state: Path, token_file: Path | None = None) -> str:
+    token = os.environ.get("L1GHT5P33D_SESSION_TOKEN")
+    if token:
+        return token
+    token_path = token_file or state / "session.token"
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # Exclusive creation prevents two startup processes from replacing a token.
+        descriptor = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        if token_path.stat().st_size > 512:
+            raise ValueError("Session token file exceeds 512 bytes") from None
+        token = token_path.read_text("ascii").strip()
+    else:
+        token = secrets.token_urlsafe(32)
+        with os.fdopen(descriptor, "w", encoding="ascii") as stream:
+            stream.write(token)
+    print(f"Session token file: {token_path}; keep it private.", file=sys.stderr)
+    return token
+
+
+def _trial(state: Path, retention_days: int, *, no_browser: bool) -> int:
+    """Use the public curated bytes and real review path; never approve a trial."""
+    import uvicorn
+
+    from l1ght5p33d.fixtures.creative import serve_creative_fixture
+    from l1ght5p33d.mcp_server import create_app
+
+    workflows = state / "workflows"
+    workflows.mkdir(parents=True, exist_ok=True)
+    with serve_creative_fixture(port=7332):
+        service = WorkflowService(
+            workflows,
+            Policy(
+                applications=["browser"],
+                allowed_origins=["http://127.0.0.1:7332"],
+                allow_loopback=False,
+                allowed_operations={"browser": ["fill", "select", "click"]},
+            ),
+            state_root=state,
+            cache_retention_days=retention_days,
+        )
+        stop_opener = threading.Event()
+        opener: threading.Thread | None = None
+        try:
+            app = create_app(service, _session_token(state), port=7331)
+            record = service.prepare_task("poster-demo", "0.1.0", source="thebest")
+            print(
+                "Reviewed poster workflow downloaded or reused; awaiting your approval."
+            )
+            print(_run_summary(record["plan"]))
+            print(
+                "Synthetic fixture only; its in-memory poster disappears when this command stops."
+            )
+            print(f"Review and approve: {record['review_url']}", flush=True)
+            print("Keep this command running. Press Ctrl+C to stop.", flush=True)
+            server = uvicorn.Server(
+                uvicorn.Config(
+                    app,
+                    host="127.0.0.1",
+                    port=7331,
+                    log_level="warning",
+                    access_log=False,
+                )
+            )
+
+            def open_review() -> None:
+                # Never open a port occupied by another process before our bind succeeds.
+                while not stop_opener.wait(0.05):
+                    if server.started:
+                        try:
+                            webbrowser.open(record["review_url"])
+                        except (OSError, webbrowser.Error):
+                            print(
+                                "Open the printed review URL in your browser.",
+                                file=sys.stderr,
+                            )
+                        return
+
+            if not no_browser:
+                opener = threading.Thread(target=open_review, daemon=True)
+                opener.start()
+            server.run()
+            return 0
+        finally:
+            stop_opener.set()
+            if opener is not None:
+                opener.join(timeout=2)
+            service.shutdown()
 
 
 def _wait(service: WorkflowService, run: dict[str, Any]) -> int:
@@ -94,7 +266,7 @@ def _run_file(
         _print(run)
         return 0
     if not _fixture_demo:
-        _confirm(render_run_plan(run["plan"]))
+        _confirm_run(run["plan"])
     else:
         print("Running the bundled synthetic fixture demonstration only.")
     service.approve_run_plan(
@@ -109,7 +281,9 @@ def main(argv: list[str] | None = None) -> int:
         prog="l1ght5p33d",
         description="Local creation workflows; no model calls on routine execution",
     )
-    parser.add_argument("--version", action="version", version="L1ght5p33d 0.1.0")
+    parser.add_argument(
+        "--version", action="version", version=f"L1ght5p33d {__version__}"
+    )
     parser.add_argument(
         "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"], default="INFO"
     )
@@ -148,12 +322,23 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--dry-run", action="store_true")
     for name in ("list", "serve", "rpc"):
         command = commands.add_parser(name)
-        command.add_argument("--workflows", type=Path, required=True)
+        command.add_argument("--workflows", type=Path, required=name == "list")
         command.add_argument("--policy", type=Path)
         command.add_argument("--discovery", type=Path)
+        if name in {"serve", "rpc"}:
+            command.add_argument("--state", type=Path)
+            command.add_argument(
+                "--cache-retention-days", type=_retention_days, default=90
+            )
         if name == "serve":
             command.add_argument("--port", type=int, default=7331)
             command.add_argument("--token-file", type=Path)
+    trial = commands.add_parser(
+        "try", help="Fetch a reviewed poster workflow and open local approval"
+    )
+    trial.add_argument("--state", type=Path)
+    trial.add_argument("--cache-retention-days", type=_retention_days, default=90)
+    trial.add_argument("--no-browser", action="store_true")
     midi = commands.add_parser("midi")
     midi.add_argument("folder", type=Path)
     midi.add_argument("--reference-wav", type=Path)
@@ -180,6 +365,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     logging.basicConfig(level=args.log_level, format="%(message)s")
     try:
+        if args.command == "try":
+            return _trial(
+                args.state or local_home(),
+                args.cache_retention_days,
+                no_browser=args.no_browser,
+            )
         if args.command in {"catalog", "install-workflow"}:
             from l1ght5p33d.registry import fetch_catalog, install_workflow
 
@@ -272,7 +463,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise PermissionDenied(
                     "Plan is not awaiting approval; prepare a fresh plan"
                 )
-            _confirm(render_run_plan(record["plan"]))
+            _confirm_run(record["plan"])
             _print(
                 service.approve_run_plan(
                     args.plan_id, record["plan"]["plan_digest"], local_operator=True
@@ -421,41 +612,39 @@ def main(argv: list[str] | None = None) -> int:
                 from l1ght5p33d.fixtures.windows_demo import run_demo
 
                 return run_demo()
+        state = getattr(args, "state", None) or local_home()
+        workflows = args.workflows or state / "workflows"
+        if args.workflows is None:
+            workflows.mkdir(parents=True, exist_ok=True)
         service = WorkflowService(
-            args.workflows,
+            workflows,
             load_policy(args.policy),
+            state_root=state,
             discovery=load_discovery(args.discovery),
+            cache_retention_days=getattr(args, "cache_retention_days", 90),
         )
         if args.command == "list":
             _print(service.list_workflows())
         elif args.command == "rpc":
             from l1ght5p33d.mcp_server import run_json_rpc
 
-            run_json_rpc(service)
+            try:
+                service.companion.start()
+                run_json_rpc(service)
+            finally:
+                service.shutdown()
         elif args.command == "serve":
             import uvicorn
 
             from l1ght5p33d.mcp_server import create_app
 
-            token = os.environ.get("L1GHT5P33D_SESSION_TOKEN")
-            if not token:
-                token_path = args.token_file or local_home() / "session.token"
-                token_path.parent.mkdir(parents=True, exist_ok=True)
-                if token_path.exists():
-                    token = token_path.read_text("ascii").strip()
-                else:
-                    token = secrets.token_urlsafe(32)
-                    token_path.write_text(token, "ascii")
-                    os.chmod(token_path, 0o600)
-                print(
-                    f"Session token is in {token_path}; keep this file private.",
-                    file=sys.stderr,
-                )
+            token = _session_token(state, args.token_file)
             uvicorn.run(
                 create_app(service, token, port=args.port),
                 host="127.0.0.1",
                 port=args.port,
                 log_level="warning",
+                access_log=False,
             )
         return 0
     except (ValueError, OSError, RuntimeError) as exc:

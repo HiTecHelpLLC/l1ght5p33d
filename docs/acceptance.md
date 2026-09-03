@@ -1,7 +1,31 @@
-# v0.1.0 acceptance and evidence
+# Acceptance and evidence
 
 Tests import published OpenAdapt Flow 1.34.0 under Python 3.12. This preview does
 not claim to requalify every inherited OpenAdapt target or hosted service.
+
+## v0.2.0 companion scope
+
+The companion connects the public curated THEBEST GitHub source to a managed
+download cache, complete local review and explicit per-run approval. `try`
+prepares the fixed poster fixture and its review page; `serve` provides managed
+defaults and the `prepare_task`, `get_task_status` and `get_cache_status` tools.
+
+| Contract | Boundary |
+| --- | --- |
+| Curated pack discovery | Fixed public GitHub source; candidate index is untrusted; shipped THEBEST key verifies role, identity, expiry and exact artifact hashes |
+| Review before execution | Summary plus complete steps; variable changes and authored copies need fresh explicit confirmation bound to the exact, single-use plan |
+| Human-presence boundary | Review URLs carry capabilities; an authorized client could imitate approval; agents must leave confirmation to the user; no cryptographic human-presence claim |
+| Original and edited workflow | Original signed bytes preserved; authored copy has no inherited curator attestation |
+| Managed retention | Default 90 days without execution, configurable 1-3650; active, pinned, modified and untracked content protected; authored files and receipts excluded |
+| Cache reuse | Signature and artifact verification repeated; viewing/preparing does not refresh last use; execution does |
+| Distribution | One synthetic browser pack; no deployed THEBEST website/P2P register; native configured catalog imports remain outside managed cache |
+
+This scope table is not a test-pass report. Exact v0.2.0 check results and CI links
+belong in its release notes. The existing curator signature binds the fixture's
+recorded older runtime and Windows 11 environment; it does not requalify v0.2.0
+or other applications. See the [companion guide](companion.md).
+
+## Existing runtime evidence and limitations
 
 | Criterion | Evidence / boundary |
 | --- | --- |

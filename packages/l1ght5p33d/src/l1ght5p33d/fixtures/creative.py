@@ -20,7 +20,9 @@ saved.value=r.ok?'Saved':'Save failed';preview.textContent=poster_title.value;};
 
 
 @contextmanager
-def serve_creative_fixture() -> Iterator[str]:
+def serve_creative_fixture(*, port: int = 0) -> Iterator[str]:
+    if type(port) is not int or not 0 <= port <= 65535:
+        raise ValueError("Fixture port must be an integer from 0 to 65535")
     state: dict[str, str] = {}
 
     class Handler(BaseHTTPRequestHandler):
@@ -47,7 +49,7 @@ def serve_creative_fixture() -> Iterator[str]:
             self.send_response(204)
             self.end_headers()
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

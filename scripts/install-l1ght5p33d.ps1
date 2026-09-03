@@ -23,5 +23,5 @@ $runnerPython = Join-Path $packageRoot '.venv\Scripts\python.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Chromium installation failed.' }
 & $runnerPython -X utf8 -m l1ght5p33d --version
 if ($LASTEXITCODE -ne 0) { throw 'L1ght5p33d import check failed.' }
-Write-Host 'Installed. Run the harmless example:'
-Write-Host "& '$runnerPython' -X utf8 -m l1ght5p33d demo browser"
+Write-Host 'Installed. Try a reviewed workflow with local approval:'
+Write-Host "& '$runnerPython' -X utf8 -m l1ght5p33d try"

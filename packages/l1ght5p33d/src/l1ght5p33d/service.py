@@ -51,6 +51,7 @@ class WorkflowService:
         *,
         state_root: Path | None = None,
         discovery: DiscoveryConfig | None = None,
+        cache_retention_days: int = 90,
     ) -> None:
         self.root = workflow_root.resolve(strict=True)
         self.policy = policy
@@ -63,6 +64,103 @@ class WorkflowService:
         self._shutting_down = False
         self.plans = RunPlanStore(self.state_root)
         self.discovery = WorkflowDiscovery(discovery or DiscoveryConfig(), self.root)
+        from l1ght5p33d.companion import Companion
+
+        self.review_base_url = "http://127.0.0.1:7331"
+        self.companion = Companion(self, cache_retention_days)
+
+    def search_curated_workflows(
+        self, query: str, application: str | None = None
+    ) -> list[dict[str, Any]]:
+        return self.companion.source.search(query, application)
+
+    def prepare_task(
+        self,
+        workflow_id: str,
+        version: str,
+        variables: dict[str, str] | None = None,
+        source: str = "thebest",
+    ) -> dict[str, Any]:
+        """Resolve and fetch a reviewed pack, then hand the exact plan to its user."""
+        with self._lock:
+            if source != "thebest":
+                raise ValueError("Use a configured catalog import for other sources")
+            downloaded = self.download_workflow(source, workflow_id, version)
+            self.set_workflow_variables(workflow_id, variables or {})
+            record = self.companion.issue_review(self.prepare_workflow_run(workflow_id))
+            return {**record, "download": downloaded, "approval_required": True}
+
+    def get_cache_status(self) -> dict[str, Any]:
+        return self.companion.cache.status()
+
+    def get_task_status(self, plan_id: str) -> dict[str, Any]:
+        with self._lock:
+            record = self.get_run_plan(plan_id)
+            run = next((r for r in self.runs.values() if r["plan_id"] == plan_id), None)
+            return {
+                "plan_id": plan_id,
+                "status": record["status"],
+                "execution": self.get_execution_status(run["run_id"]) if run else None,
+            }
+
+    def get_review_plan(self, plan_id: str, review_token: str) -> dict[str, Any]:
+        with self._lock:
+            record = self.companion.authorize(plan_id, review_token)
+            result = dict(record)
+            run_id = self.companion.reviews[plan_id]["run_id"]
+            if run_id:
+                result.update(
+                    status=self.runs[run_id]["status"],
+                    execution=self.get_execution_status(run_id),
+                )
+            else:
+                self.companion.check_current(record)
+                result["workflow_content"] = self._path(
+                    record["plan"]["workflow_id"]
+                ).read_text("ascii")
+            return result
+
+    def approve_review_plan(
+        self, plan_id: str, review_token: str, expected_digest: str
+    ) -> dict[str, Any]:
+        with self._lock:
+            record = self.companion.authorize(plan_id, review_token, expected_digest)
+            self.approve_run_plan(plan_id, expected_digest, local_operator=True)
+            run = self.run_workflow(record["plan"]["workflow_id"], plan_id=plan_id)
+            self.companion.reviews[plan_id]["run_id"] = run["run_id"]
+            self.companion.release_review_lease(plan_id)
+            return run
+
+    def update_review_variables(
+        self,
+        plan_id: str,
+        review_token: str,
+        variables: dict[str, str],
+        expected_digest: str | None = None,
+    ) -> dict[str, Any]:
+        with self._lock:
+            record = self.companion.authorize(plan_id, review_token, expected_digest)
+            workflow_id = record["plan"]["workflow_id"]
+            self.set_workflow_variables(workflow_id, variables)
+            fresh = self.companion.issue_review(self.prepare_workflow_run(workflow_id))
+            self.companion.revoke(plan_id)
+            return fresh
+
+    def update_review_workflow(
+        self, plan_id: str, review_token: str, content: str, expected_digest: str
+    ) -> dict[str, Any]:
+        with self._lock:
+            record = self.companion.authorize(plan_id, review_token, expected_digest)
+            workflow_id = record["plan"]["workflow_id"]
+            patch = self.propose_workflow_patch(workflow_id, content)
+            self.approve_workflow_patch(
+                patch["patch_id"],
+                local_operator=True,
+                expected_digest=patch["new_digest"],
+            )
+            fresh = self.companion.issue_review(self.prepare_workflow_run(workflow_id))
+            self.companion.revoke(plan_id)
+            return fresh
 
     def search_workflow_catalog(
         self, query: str, application: str | None = None, limit: int = 100
@@ -75,6 +173,8 @@ class WorkflowService:
         with self._lock:
             if any(not run["done"] for run in self.runs.values()):
                 raise RuntimeError("Finish or abort the active run before downloading")
+            if registry_name == "thebest":
+                return self.companion.download(workflow_id, version)
             return self.discovery.stage(registry_name, workflow_id, version)
 
     def _input_files(
@@ -185,6 +285,9 @@ class WorkflowService:
             if plan["unresolved_values"]
             else []
         )
+        review = self.companion.provenance(doc.id)
+        if review:
+            plan["workflow_review"] = review
         plan.pop("plan_digest", None)
         plan["plan_digest"] = digest(plan)
         return plan
@@ -236,7 +339,7 @@ class WorkflowService:
             self.plans.approve(plan_id, expected_digest)
             return {"plan_id": plan_id, "status": "approved", "single_use": True}
 
-    def _registry(self) -> dict[str, Path]:
+    def _local_registry(self) -> dict[str, Path]:
         entries = {}
         for path in sorted(self.root.glob("*.json"))[:500]:
             resolved = path.resolve()
@@ -251,7 +354,22 @@ class WorkflowService:
             entries[doc.id] = resolved
         return entries
 
+    def _registry(self) -> dict[str, Path]:
+        entries = self._local_registry()
+        for workflow_id in self.companion.selected:
+            if workflow_id not in entries:
+                try:
+                    entries[workflow_id] = self.companion.path(workflow_id)
+                except (ValueError, OSError):
+                    continue
+        return entries
+
     def _path(self, workflow_id: str) -> Path:
+        local = self._local_registry().get(workflow_id)
+        if local:
+            return local
+        if workflow_id in self.companion.selected:
+            return self.companion.path(workflow_id)
         try:
             return self._registry()[workflow_id]
         except KeyError as exc:
@@ -355,6 +473,35 @@ class WorkflowService:
         dry_run: bool = False,
         plan_id: str | None = None,
     ) -> dict[str, Any]:
+        with self._lock:
+            key = self.companion.key_for(workflow_id)
+            lease = self.companion.cache.acquire(key) if key else None
+            try:
+                result = self._run_workflow(
+                    workflow_id,
+                    step_mode=step_mode,
+                    dry_run=dry_run,
+                    plan_id=plan_id,
+                    cache_lease=lease,
+                    cache_key=key,
+                )
+                if "run_id" in result:
+                    lease = None  # The execution's finally block now owns the lease.
+                return result
+            finally:
+                if lease:
+                    self.companion.cache.release(lease)
+
+    def _run_workflow(
+        self,
+        workflow_id: str,
+        *,
+        step_mode: bool = False,
+        dry_run: bool = False,
+        plan_id: str | None = None,
+        cache_lease: str | None = None,
+        cache_key: str | None = None,
+    ) -> dict[str, Any]:
         path = self._path(workflow_id)
         doc = load_workflow(path)
         self.policy.check_workflow(doc, require_approval=False)
@@ -389,6 +536,10 @@ class WorkflowService:
                     "Unresolved plan values require clarification before execution"
                 )
             self.plans.consume(plan_id, current_plan["plan_digest"])
+            if cache_key:
+                # Record the approved execution attempt before any provider can act.
+                # A cache failure must not report rejection after launching a run.
+                self.companion.cache.touch(cache_key)
             run_id = uuid.uuid4().hex
             run_dir = self.state_root / "runs" / run_id
             run_dir.mkdir(parents=True)
@@ -412,6 +563,7 @@ class WorkflowService:
                 "ui_state": {},
                 "error": None,
                 "manual_review": [str(note) for note in manual_review],
+                "cache_lease": cache_lease,
             }
             self.runs[run_id] = run
             write_json(run_dir / "approved-plan.json", current_plan)
@@ -430,6 +582,7 @@ class WorkflowService:
         deadline = time.monotonic() + min(max(timeout_s, 0), 60)
         with self._lock:
             self._shutting_down = True
+            self.companion.close()
             active = [run for run in self.runs.values() if not run["done"]]
             for run in active:
                 run["control"].abort()
@@ -568,6 +721,13 @@ class WorkflowService:
                 except Exception:
                     run["cleanup_warning"] = "Provider cleanup needs manual review"
             run["control"].finish()
+            if run.get("cache_lease"):
+                try:
+                    self.companion.cache.release(run.pop("cache_lease"))
+                except Exception:
+                    run["cache_warning"] = (
+                        "Cache lease cleanup deferred; execution has stopped"
+                    )
             run["done"] = True
             self._persist(run)
 
@@ -755,6 +915,14 @@ class WorkflowService:
             backup = self.state_root / "originals" / f"{patch_id}.json"
             backup.parent.mkdir(parents=True, exist_ok=True)
             backup.write_bytes(path.read_bytes())
+            if self.companion.key_for(patch["workflow_id"]):
+                # A derivative belongs to the user's library, outside cache expiry.
+                # Never transfer the original pack's curator signature to edited bytes.
+                path = self.root / f"local-{patch['workflow_id']}.json"
+                if path.exists() or path.is_symlink():
+                    raise PermissionDenied(
+                        "Local derivative destination already exists"
+                    )
             write_json(path, json.loads(patch["content"]))
             if patch["new_digest"] not in self.policy.approved_workflow_digests:
                 self.policy.approved_workflow_digests.append(patch["new_digest"])
