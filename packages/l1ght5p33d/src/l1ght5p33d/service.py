@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import os
 import platform
@@ -14,8 +15,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from l1ght5p33d.approvals import RunPlanStore
+from l1ght5p33d.discovery import DiscoveryConfig, WorkflowDiscovery
+from l1ght5p33d.planning import build_run_plan
 from l1ght5p33d.policy import PermissionDenied, Policy, digest, redact
-from l1ght5p33d.providers.base import ProviderVerifier, ToolActuator
+from l1ght5p33d.providers.base import ProviderVerifier, ToolActuator, substitute
 from l1ght5p33d.runtime import ControlledReplayer, RunControl
 from l1ght5p33d.workflow import (
     WorkflowDocument,
@@ -41,7 +45,12 @@ def write_json(path: Path, value: Any) -> None:
 
 class WorkflowService:
     def __init__(
-        self, workflow_root: Path, policy: Policy, *, state_root: Path | None = None
+        self,
+        workflow_root: Path,
+        policy: Policy,
+        *,
+        state_root: Path | None = None,
+        discovery: DiscoveryConfig | None = None,
     ) -> None:
         self.root = workflow_root.resolve(strict=True)
         self.policy = policy
@@ -52,6 +61,180 @@ class WorkflowService:
         self._lock = threading.RLock()
         self._patches: dict[str, dict[str, Any]] = {}
         self._shutting_down = False
+        self.plans = RunPlanStore(self.state_root)
+        self.discovery = WorkflowDiscovery(discovery or DiscoveryConfig(), self.root)
+
+    def search_workflow_catalog(
+        self, query: str, application: str | None = None, limit: int = 100
+    ) -> dict[str, Any]:
+        return self.discovery.search(query, application, limit)
+
+    def download_workflow(
+        self, registry_name: str, workflow_id: str, version: str
+    ) -> dict[str, Any]:
+        with self._lock:
+            if any(not run["done"] for run in self.runs.values()):
+                raise RuntimeError("Finish or abort the active run before downloading")
+            return self.discovery.stage(registry_name, workflow_id, version)
+
+    def _input_files(
+        self,
+        doc: WorkflowDocument,
+        params: dict[str, Any],
+        *,
+        arguments: dict[str, Any] | None = None,
+        policy: Policy | None = None,
+    ) -> list[dict[str, Any]]:
+        paths: set[Path] = set()
+        file_policy = policy or self.policy
+
+        def resolved(value: Any) -> Any:
+            return value if arguments is not None else substitute(value, params)
+
+        def visit(value: Any) -> None:
+            if isinstance(value, dict):
+                if value.get("method") == "template":
+                    from l1ght5p33d.providers.vision import template_path
+
+                    config = doc.configuration.get(doc.application, doc.configuration)
+                    if not config.get("template_root"):
+                        raise PermissionDenied(
+                            "Template review needs a configured local root"
+                        )
+                    path = template_path(
+                        Path(config["template_root"]),
+                        str(resolved(value.get("template", ""))),
+                    )
+                    paths.add(file_policy.path(path))
+                for key, item in value.items():
+                    if key in {"file", "path", "filename", "reference_wav"} and item:
+                        paths.add(file_policy.path(str(resolved(item))))
+                    elif key in {"files", "paths"} and item:
+                        for entry in resolved(item):
+                            paths.add(file_policy.path(str(entry)))
+                    else:
+                        visit(item)
+            elif isinstance(value, list):
+                for item in value:
+                    visit(item)
+
+        if arguments is not None:
+            visit(arguments)
+        else:
+            for step in all_steps(doc.workflow):
+                visit(step.api_binding.body_template)
+        results = []
+        for path in sorted(paths):
+            before = path.stat()
+            if before.st_size > 4_000_000_000:
+                raise PermissionDenied("Input exceeds the 4 GB review limit")
+            file_hash = hashlib.sha256()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    file_hash.update(chunk)
+            after = path.stat()
+            if (before.st_size, before.st_mtime_ns) != (
+                after.st_size,
+                after.st_mtime_ns,
+            ):
+                raise PermissionDenied("Input changed during review; prepare again")
+            results.append(
+                {
+                    "path": str(path),
+                    "size": after.st_size,
+                    "sha256": file_hash.hexdigest(),
+                }
+            )
+        return results
+
+    def _build_plan(
+        self, doc: WorkflowDocument, variables: dict[str, str]
+    ) -> dict[str, Any]:
+        plan = build_run_plan(doc, self.policy, variables)
+        plan["input_files"] = self._input_files(doc, plan["variables"])
+        plan["review_boundary"].update(
+            external_files_read=bool(plan["input_files"]),
+            file_contents_verified=True,
+            note="Declared file inputs are hashed locally; content hashes are rechecked before file actions",
+        )
+        plan["workflow_root"] = str(self.root)
+        settings = self._provider_configuration(doc)
+        lifecycle = {
+            "browser": {
+                "startup": "Launch a dedicated browser context, navigate to the configured URL, inspect its identity",
+                "cleanup": "Close the owned browser context and stop the browser connection",
+            },
+            "bandlab": {
+                "startup": "When Studio opens, attach or launch the dedicated browser, create a page and navigate to the configured URL",
+                "cleanup": "Disconnect and preserve live Studio pages; close the owned browser for fixture runs",
+            },
+            "windows": {
+                "startup": "Attach to the already-open executable and inspect window identity; require foreground before input",
+                "cleanup": "Release automation resources; leave the application open",
+            },
+        }
+        plan["provider_lifecycle"] = {
+            **lifecycle.get(doc.application, {"startup": "Provider is not installed"}),
+            "effective_settings": settings,
+        }
+        plan["review_blockers"] = (
+            [
+                "Resolve unavailable or dynamic values before execution; this preview does not "
+                "expand every loop/decision scope into a reviewable run"
+            ]
+            if plan["unresolved_values"]
+            else []
+        )
+        plan.pop("plan_digest", None)
+        plan["plan_digest"] = digest(plan)
+        return plan
+
+    def prepare_workflow_run(self, workflow_id: str) -> dict[str, Any]:
+        with self._lock:
+            doc = load_workflow(self._path(workflow_id))
+            self.policy.check_workflow(doc, require_approval=False)
+            variables = dict(self.variables.get(workflow_id, {}))
+            plan = self._build_plan(doc, variables)
+            record = self.plans.prepare(plan, self.root, variables)
+            return {
+                **record,
+                "status": "blocked" if plan["review_blockers"] else "awaiting_approval",
+                "actions_delivered": 0,
+            }
+
+    def get_run_plan(self, plan_id: str) -> dict[str, Any]:
+        record = self.plans.read(plan_id)
+        if record["workflow_root"] != str(self.root):
+            raise PermissionDenied("Plan belongs to a different workflow library")
+        return {
+            **record,
+            "status": "blocked"
+            if record["plan"].get("review_blockers")
+            else self.plans.status(plan_id),
+        }
+
+    def approve_run_plan(
+        self, plan_id: str, expected_digest: str, *, local_operator: bool = False
+    ) -> dict[str, Any]:
+        if not local_operator:
+            raise PermissionDenied(
+                "Only the local human review command can approve a run"
+            )
+        with self._lock:
+            record = self.get_run_plan(plan_id)
+            doc = load_workflow(self._path(record["plan"]["workflow_id"]))
+            self.policy.check_workflow(doc, require_approval=False)
+            current = self._build_plan(doc, record["supplied_variables"])
+            if current["review_blockers"]:
+                raise PermissionDenied(
+                    "Unresolved plan values require clarification before approval"
+                )
+            if current["plan_digest"] != expected_digest:
+                raise PermissionDenied(
+                    "Inputs, workflow or policy changed; prepare a new plan"
+                )
+            self.plans.approve(plan_id, expected_digest)
+            return {"plan_id": plan_id, "status": "approved", "single_use": True}
 
     def _registry(self) -> dict[str, Path]:
         entries = {}
@@ -93,7 +276,7 @@ class WorkflowService:
 
     def validate_workflow(self, workflow_id: str) -> dict[str, Any]:
         doc = load_workflow(self._path(workflow_id))
-        self.policy.check_workflow(doc)
+        self.policy.check_workflow(doc, require_approval=False)
         return {"valid": True, "digest": digest(doc), "id": doc.id}
 
     def inspect_environment(self) -> dict[str, Any]:
@@ -121,9 +304,21 @@ class WorkflowService:
             self.variables[workflow_id] = dict(variables)
         return {"id": workflow_id, "variables": redact(variables)}
 
-    def _provider(self, doc: WorkflowDocument) -> Any:
+    def _provider_configuration(self, doc: WorkflowDocument) -> dict[str, Any]:
         config = dict(doc.configuration)
         config = dict(config.get(doc.application, config))
+        if doc.application == "browser":
+            config.setdefault("channel", None)
+            config.setdefault("headless", not bool(config.get("profile")))
+            config.setdefault("timeout_s", 5)
+        if doc.application == "bandlab":
+            config.setdefault("mode", "fixture")
+            config.setdefault("timeout_ms", 5000)
+            if config["mode"] == "live":
+                config.setdefault("channel", "msedge")
+                config.setdefault("profile", "bandlab")
+            else:
+                config.setdefault("headless", True)
         profile = config.get("profile")
         if profile:
             # Profile names, never arbitrary browser-profile paths over MCP.
@@ -134,6 +329,10 @@ class WorkflowService:
             config["profile"] = str(self.state_root / "profiles" / profile)
             if doc.application == "bandlab":
                 config["profile_dir"] = config["profile"]
+        return config
+
+    def _provider(self, doc: WorkflowDocument) -> Any:
+        config = self._provider_configuration(doc)
         if doc.application == "browser":
             from l1ght5p33d.providers.browser import BrowserProvider
 
@@ -149,16 +348,22 @@ class WorkflowService:
         raise ValueError("Provider is not installed")
 
     def run_workflow(
-        self, workflow_id: str, *, step_mode: bool = False, dry_run: bool = False
+        self,
+        workflow_id: str,
+        *,
+        step_mode: bool = False,
+        dry_run: bool = False,
+        plan_id: str | None = None,
     ) -> dict[str, Any]:
         path = self._path(workflow_id)
         doc = load_workflow(path)
-        self.policy.check_workflow(doc)
+        self.policy.check_workflow(doc, require_approval=False)
         if dry_run:
             return {
                 "status": "dry_run",
                 "actions_delivered": 0,
                 **self.describe_workflow(workflow_id),
+                "plan": self._build_plan(doc, self.variables.get(workflow_id, {})),
             }
         with self._lock:
             if self._shutting_down:
@@ -167,6 +372,23 @@ class WorkflowService:
                 raise RuntimeError(
                     "Only one active automation run is allowed per service"
                 )
+            if plan_id is None:
+                return self.prepare_workflow_run(workflow_id)
+            record = self.get_run_plan(plan_id)
+            current_variables = dict(self.variables.get(workflow_id, {}))
+            if (
+                record["plan"]["workflow_id"] != workflow_id
+                or current_variables != record["supplied_variables"]
+            ):
+                raise PermissionDenied(
+                    "Plan identity or variables changed; prepare a new plan"
+                )
+            current_plan = self._build_plan(doc, current_variables)
+            if current_plan["review_blockers"]:
+                raise PermissionDenied(
+                    "Unresolved plan values require clarification before execution"
+                )
+            self.plans.consume(plan_id, current_plan["plan_digest"])
             run_id = uuid.uuid4().hex
             run_dir = self.state_root / "runs" / run_id
             run_dir.mkdir(parents=True)
@@ -179,6 +401,9 @@ class WorkflowService:
                 "run_id": run_id,
                 "workflow_id": workflow_id,
                 "digest": digest(doc),
+                "plan_id": plan_id,
+                "plan_digest": current_plan["plan_digest"],
+                "approved_input_files": current_plan["input_files"],
                 "control": control,
                 "directory": run_dir,
                 "done": False,
@@ -189,9 +414,12 @@ class WorkflowService:
                 "manual_review": [str(note) for note in manual_review],
             }
             self.runs[run_id] = run
+            write_json(run_dir / "approved-plan.json", current_plan)
             params = {**doc.workflow.params, **self.variables.get(workflow_id, {})}
             thread = threading.Thread(
-                target=self._execute, args=(run, doc, path.parent, params), daemon=True
+                target=self._execute,
+                args=(run, doc, path.parent, params, self.policy.model_copy(deep=True)),
+                daemon=True,
             )
             run["thread"] = thread
             thread.start()
@@ -228,6 +456,7 @@ class WorkflowService:
         doc: WorkflowDocument,
         bundle_dir: Path,
         params: dict[str, str],
+        policy_snapshot: Policy,
     ) -> None:
         provider = None
         run_dir = run["directory"]
@@ -269,10 +498,23 @@ class WorkflowService:
                         )
                     self._persist(run)
 
+            def check_action(name: str, operation: str, args: dict[str, Any]) -> None:
+                policy_snapshot.action(name, operation, args)
+                expected_files = {
+                    entry["path"]: entry for entry in run["approved_input_files"]
+                }
+                for entry in self._input_files(
+                    doc, {}, arguments=args, policy=policy_snapshot
+                ):
+                    if expected_files.get(entry["path"]) != entry:
+                        raise PermissionDenied(
+                            "Input file changed or was absent from the approved plan"
+                        )
+
             replayer = ControlledReplayer(
                 control=run["control"],
                 receipt_sink=receipt_sink,
-                api_actuator=ToolActuator(providers, policy_check=self.policy.action),
+                api_actuator=ToolActuator(providers, policy_check=check_action),
                 effect_verifier=ProviderVerifier(providers),
                 durable=True,
             )
@@ -466,7 +708,11 @@ class WorkflowService:
         return {k: v for k, v in patch.items() if k != "content"}
 
     def approve_workflow_patch(
-        self, patch_id: str, *, local_operator: bool = False
+        self,
+        patch_id: str,
+        *,
+        local_operator: bool = False,
+        expected_digest: str | None = None,
     ) -> dict[str, Any]:
         if not re.fullmatch(r"[0-9a-f]{32}", patch_id):
             raise ValueError("Invalid patch id")
@@ -476,6 +722,8 @@ class WorkflowService:
             patch = json.loads(path.read_text("ascii")) if path.is_file() else None
         if not patch:
             raise ValueError("Unknown proposed patch")
+        if expected_digest is not None and patch["new_digest"] != expected_digest:
+            raise PermissionDenied("Patch changed after display; review a fresh diff")
         if patch["requires_local_approval"] and not local_operator:
             raise PermissionDenied(
                 "Executable/application/configuration changes need local operator approval"

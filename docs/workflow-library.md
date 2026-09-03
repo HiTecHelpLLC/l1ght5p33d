@@ -38,6 +38,31 @@ the separate `catalog` command searches a configured signed remote register.
 
 ## Discover and download shared files
 
+AI clients can call `search_workflow_catalog` and `download_workflow` after the
+operator starts MCP/JSON-RPC with `--discovery discovery.json`. They do the
+searching; the user reviews the proposed execution, not a list of manual search
+instructions. The startup configuration has this shape (replace the example
+URL and key with a reviewed publisher):
+
+```json
+{
+  "schema_version": "l1ght5p33d-discovery/v1",
+  "registries": [
+    {
+      "name": "reviewed-publisher",
+      "url": "https://registry.example/catalog.json",
+      "public_key_hex": "REPLACE_WITH_THE_REVIEWED_64_CHARACTER_HEX_KEY"
+    }
+  ],
+  "kubo_url": "http://127.0.0.1:5001"
+}
+```
+
+The AI cannot change these trust roots through the control interface. Search
+returns candidate metadata and individual source failures, never automatic
+approval or a semantic suitability guarantee. Every ordinary run now requires
+the [complete, parameter-bound human review](workflow-review.md).
+
 Obtain the publisher's Ed25519 public key through a channel you trust and save
 its 32 raw bytes as 64 hexadecimal characters in a local file. A key delivered
 inside the catalog cannot establish that catalog's identity. Given a configured

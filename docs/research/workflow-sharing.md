@@ -111,6 +111,34 @@ layer. L1ght5p33d extends the same workflow foundation with creator providers an
 local packaging. It does not claim that MCP workflow libraries or governed
 replay originated here.
 
+## Public Suno and BandLab examples
+
+Targeted source inspection on 2026-09-03 found these community examples. Public
+availability establishes a discovery source, not compatibility with OpenAdapt or
+permission to execute a workflow. These examples were inspected, not run.
+
+| Author and host | Public artifact and purpose | Requirements and review findings |
+| --- | --- | --- |
+| Davide Boizza; n8n's template catalog | [Music Producer Chatbot, template 13542](https://n8n.io/workflows/13542-music-producer-chatbot-using-gemini-suno-via-kei-ai-and-google-drive-upload/) collects song parameters, generates music and uploads results to Google Drive. | Uses Gemini, **Kie.ai**, Drive OAuth and a publicly reachable callback. The page describes the main stages and credentials, but does not establish a mandatory full-plan confirmation. Kie.ai is a third-party provider; the template is not evidence of an official Suno API integration. |
+| Ashot72; GitHub | [n8n-prompted-suno-music](https://github.com/Ashot72/n8n-prompted-suno-music) publishes [suno-kie-tracks-generator.json](https://github.com/Ashot72/n8n-prompted-suno-music/blob/main/workflows/suno-kie-tracks-generator.json): generate two tracks through Kie.ai, poll, download MP3s and save locally. | Requires a Kie API key and output directory. The inspected JSON supplies fixed lyrics, style, model and vocal defaults, with a manual trigger but no separate plan approval. No license file was present in the inspected repository root; do not copy or redistribute it without a clear grant. |
+| laygofiona; GitHub | [JarviSonix](https://github.com/laygofiona/jarvisonix), a Hack the North prototype, converts humming to MIDI and uses a computer-use agent to import and play it in BandLab. Its [cua.py](https://github.com/laygofiona/jarvisonix/blob/main/cua.py) and [ollama_prompt.py](https://github.com/laygofiona/jarvisonix/blob/main/ollama_prompt.py) are public source. | Targets Linux/Firefox in Docker, not deterministic OpenAdapt replay. The README's local-only claim conflicts with the inspected Claude model selection. The fallback can reposition regions and select the first instrument search result, without an enforced full-plan approval in this path. Its MIT license retains Cua attribution. |
+| giangxai; n8n's template catalog | [Hours-long music-video template 13088](https://n8n.io/workflows/13088-create-hours-long-wave-music-videos-with-suno-ffmpeg-api-and-youtube/) generates music, merges audio/video and uploads the result to YouTube. | Requires generation/rendering services and YouTube account access. The description explicitly includes automatic publication: selecting it merely because a user mentioned Suno would authorize far more than that request establishes. |
+
+Kie.ai's [quickstart](https://docs.kie.ai/suno-api/quickstart) documents API-key
+authentication and insufficient-credit errors. A free template download does not
+make its generation services free or establish Suno endorsement.
+
+These findings do not establish a maintained catalog of qualified OpenAdapt
+bundles for BandLab and Suno. They also do not prove that no other public examples
+exist. The formats, application assumptions and verification levels differ.
+
+Descriptions help discovery but cannot serve as execution authorization. The AI
+should inspect the actual actions and effective defaults, identify unresolved
+intent, and show the complete proposed plan before asking for confirmation.
+L1ght5p33d's [workflow review process](../workflow-review.md) binds a normal run
+to that reviewed plan and its inputs; downloading a candidate grants no execution
+permission. Changed targets, values or effects require a new review.
+
 ## Implications for shared workflow packages
 
 The following are design requirements for future catalog work, not claims that
@@ -126,6 +154,6 @@ a hosted registry or every metadata field is already implemented:
 - Support authoring, finding, editing, composing and executing workflows across
   creative applications, while documenting each adapter's qualification level.
 
-No code, scripts, workflows or media from the four ecosystems above were copied
+No code, scripts, workflows or media from the examples above were copied
 for this research appendix. Links identify prior art and possible integration
 boundaries; they do not imply affiliation or endorsement.

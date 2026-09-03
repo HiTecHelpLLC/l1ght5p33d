@@ -56,6 +56,9 @@ The package is not yet published to PyPI.
   assertions and exception paths through the existing OpenAdapt Flow runtime.
 - CLI and localhost MCP: discover, validate, run, step, pause, resume, abort,
   inspect receipts, and propose a readable workflow patch.
+- AI-facing search and inactive download from operator-pinned catalogs; complete
+  per-run plans with explicit local human confirmation, single-use approval and
+  revalidation of inputs. See [workflow review](docs/workflow-review.md).
 - Playwright role/label selectors, explicit fallback chains and dedicated Chrome
   or Edge profiles. Input delivery and verified outcomes are separate facts.
 - Windows UIA with exact executable/PID/HWND/title/DPI/display/foreground checks;

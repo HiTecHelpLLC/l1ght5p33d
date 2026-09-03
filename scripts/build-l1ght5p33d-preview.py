@@ -53,6 +53,7 @@ def build(destination: Path) -> Path:
         "troubleshooting.md",
         "trademark-disclaimer.md",
         "workflow-library.md",
+        "workflow-review.md",
         "third-party-inventory.json",
         "registry-operations.md",
     ):

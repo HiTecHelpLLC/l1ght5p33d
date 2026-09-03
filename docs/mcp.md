@@ -10,13 +10,17 @@ CORS is enabled. This trusted local service must not be proxied publicly.
 
 | Tool | Arguments / behavior |
 | --- | --- |
+| search_workflow_catalog | `query`, optional `application`/`limit`; candidates from operator-pinned catalogs |
+| download_workflow | `registry_name`, `workflow_id`, exact `version`; inactive staging, no grant |
+| prepare_workflow_run | `workflow_id`; full current-input review plan, no application startup |
+| get_run_plan | `plan_id`; complete plan and local approval state |
 | list_workflows | Validated registered IDs, descriptions, parameters and steps |
 | describe_workflow | `workflow_id`; metadata and digest |
 | validate_workflow | `workflow_id`; schema and policy |
 | inspect_environment | Runtime and allowed providers; no account inspection |
 | inspect_ui_state | `run_id`; structured state at last completed action boundary |
 | set_workflow_variables | `workflow_id`, declared string `variables` |
-| run_workflow | `workflow_id`, optional `step_mode`/`dry_run`; immediate run ID |
+| run_workflow | `workflow_id`, optional `step_mode`/`dry_run`, approved `plan_id`; missing plan prepares review instead of running |
 | run_step | `run_id`; one action permit |
 | pause_workflow | `run_id`; current verification finishes before pausing |
 | resume_workflow | `run_id`; in-process pause only |
@@ -31,11 +35,19 @@ Snapshots include timestamps/freshness, never screenshots, cookies or credential
 Registry tools accept IDs rather than arbitrary file paths. Includes remain in
 the workflow folder. Proposals preserve originals and become stale when the
 original digest changes. No tool can expand filesystem or application policy.
-MCP discovery is limited to the selected local folder; those tools do not search
-or install from GitHub or a remote catalog. The separate `catalog` and
-`install-workflow` CLI commands support signed remote discovery and inactive
-Kubo downloads. See the [workflow library](workflow-library.md) for file layout,
-sharing, editing and composition.
+Add `--discovery discovery.json` to `serve` or `rpc` for signed remote discovery.
+The local startup file supplies trusted registry names, URLs and Ed25519 keys;
+MCP accepts no new trust roots, URLs or destination paths. Downloads use the
+existing bounded Kubo client and fixed workflow folder, with provenance receipts.
+Search is literal candidate matching, not a guarantee that the workflow matches
+the user's intent. The AI must inspect actual steps and clarify ambiguity.
+See the [workflow library](workflow-library.md) and [human review contract](workflow-review.md).
+
+There is no `approve_run_plan` MCP/JSON-RPC method. A local human reviews the
+complete plan with `review-run`, then the client can start that unchanged,
+single-use plan. Setting variables, changing a workflow or policy, or changing
+an input file invalidates the previous plan. Calling `run_workflow` without an
+approved plan cannot create a provider or send input.
 
 `l1ght5p33d rpc --workflows DIR --policy FILE` exposes the same method allowlist
 as newline-delimited JSON-RPC 2.0 over stdin/stdout:

@@ -214,7 +214,12 @@ def run_demo() -> int:
             approved_workflow_digests=[digest(document)],
         )
         service = WorkflowService(registry, policy, state_root=output / "state")
-        run = service.run_workflow("windows-creative")
+        # Only this internally generated synthetic fixture receives demo approval.
+        plan = service.prepare_workflow_run("windows-creative")
+        service.approve_run_plan(
+            plan["plan_id"], plan["plan"]["plan_digest"], local_operator=True
+        )
+        run = service.run_workflow("windows-creative", plan_id=plan["plan_id"])
         deadline = time.monotonic() + 60
         while not service.get_execution_status(run["run_id"])["done"]:
             if time.monotonic() >= deadline:

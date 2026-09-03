@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import logging
 import os
+import re
 import secrets
 import sys
 import time
@@ -13,13 +15,31 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from l1ght5p33d.policy import Policy, digest, load_policy
+from l1ght5p33d.discovery import load_discovery
+from l1ght5p33d.planning import build_run_plan, render_run_plan
+from l1ght5p33d.policy import PermissionDenied, Policy, digest, load_policy
 from l1ght5p33d.service import WorkflowService, local_home, write_json
-from l1ght5p33d.workflow import load_workflow, workflow_schema
+from l1ght5p33d.workflow import load_workflow, validate_document, workflow_schema
 
 
 def _print(value: Any) -> None:
     print(json.dumps(value, indent=2, ensure_ascii=True), flush=True)
+
+
+def _confirm(review: str) -> None:
+    """Human confirmation is intentionally absent from MCP/JSON-RPC."""
+    print(review, flush=True)
+    if not sys.stdin.isatty():
+        raise PermissionDenied(
+            "Approval needs an interactive local terminal. AI clients must present "
+            "the plan to the user and must not approve on the user's behalf."
+        )
+    try:
+        answer = input("Approve exactly the plan and changes above? Type APPROVE: ")
+    except (EOFError, KeyboardInterrupt) as exc:
+        raise PermissionDenied("Approval cancelled; no permission granted") from exc
+    if answer != "APPROVE":
+        raise PermissionDenied("Approval declined; no permission granted")
 
 
 def _wait(service: WorkflowService, run: dict[str, Any]) -> int:
@@ -60,6 +80,8 @@ def _run_file(
     state: Path | None = None,
     variables: list[str] | None = None,
     dry_run: bool = False,
+    *,
+    _fixture_demo: bool = False,
 ) -> int:
     doc = load_workflow(path)
     service = WorkflowService(path.parent, policy, state_root=state)
@@ -71,6 +93,14 @@ def _run_file(
     if dry_run:
         _print(run)
         return 0
+    if not _fixture_demo:
+        _confirm(render_run_plan(run["plan"]))
+    else:
+        print("Running the bundled synthetic fixture demonstration only.")
+    service.approve_run_plan(
+        run["plan_id"], run["plan"]["plan_digest"], local_operator=True
+    )
+    run = service.run_workflow(doc.id, plan_id=run["plan_id"])
     return _wait(service, run)
 
 
@@ -102,6 +132,13 @@ def main(argv: list[str] | None = None) -> int:
     patch_command.add_argument("patch_id")
     patch_command.add_argument("--workflows", type=Path, required=True)
     patch_command.add_argument("--policy", type=Path, required=True)
+    review = commands.add_parser(
+        "review-run", help="Display and approve one exact run locally"
+    )
+    review.add_argument("plan_id")
+    review.add_argument("--workflows", type=Path, required=True)
+    review.add_argument("--policy", type=Path)
+    review.add_argument("--state", type=Path)
     for name in ("validate", "run", "approve-workflow"):
         command = commands.add_parser(name)
         command.add_argument("workflow", type=Path)
@@ -113,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         command = commands.add_parser(name)
         command.add_argument("--workflows", type=Path, required=True)
         command.add_argument("--policy", type=Path)
+        command.add_argument("--discovery", type=Path)
         if name == "serve":
             command.add_argument("--port", type=int, default=7331)
             command.add_argument("--token-file", type=Path)
@@ -193,9 +231,53 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "approve-patch":
             policy = load_policy(args.policy)
             service = WorkflowService(args.workflows, policy)
-            result = service.approve_workflow_patch(args.patch_id, local_operator=True)
+            patch_path = service.state_root / "patches" / f"{args.patch_id}.json"
+            if not re.fullmatch(r"[0-9a-f]{32}", args.patch_id):
+                raise ValueError("Invalid patch id")
+            patch = json.loads(patch_path.read_text("ascii"))
+            original = load_workflow(service._path(patch["workflow_id"]))
+            proposed = validate_document(json.loads(patch["content"]))
+            if (
+                digest(original) != patch["old_digest"]
+                or digest(proposed) != patch["new_digest"]
+            ):
+                raise PermissionDenied(
+                    "Patch content or original changed; propose a fresh diff"
+                )
+            actual_diff = "".join(
+                difflib.unified_diff(
+                    original.model_dump_json(indent=2).splitlines(True),
+                    proposed.model_dump_json(indent=2).splitlines(True),
+                    fromfile="original",
+                    tofile="proposed",
+                )
+            )
+            service._patches[args.patch_id] = patch
+            # Quote the diff so untrusted text cannot control the terminal.
+            _confirm(
+                json.dumps({"patch_diff": actual_diff}, ensure_ascii=True, indent=2)
+            )
+            result = service.approve_workflow_patch(
+                args.patch_id, local_operator=True, expected_digest=patch["new_digest"]
+            )
             write_json(args.policy, policy.model_dump(mode="json"))
             _print(result)
+            return 0
+        if args.command == "review-run":
+            service = WorkflowService(
+                args.workflows, load_policy(args.policy), state_root=args.state
+            )
+            record = service.get_run_plan(args.plan_id)
+            if record["status"] != "awaiting_approval":
+                raise PermissionDenied(
+                    "Plan is not awaiting approval; prepare a fresh plan"
+                )
+            _confirm(render_run_plan(record["plan"]))
+            _print(
+                service.approve_run_plan(
+                    args.plan_id, record["plan"]["plan_digest"], local_operator=True
+                )
+            )
             return 0
         if args.command == "bandlab-login":
             from l1ght5p33d.providers.bandlab import bandlab_login
@@ -267,6 +349,10 @@ def main(argv: list[str] | None = None) -> int:
                         policy.read_roots.append(normalized)
                 policy.approved_workflow_digests.append(digest(doc))
                 policy.check_workflow(doc)
+                _confirm(
+                    "Proposed application/file/origin permission grant; each run also needs approval.\n"
+                    + render_run_plan(build_run_plan(doc, policy, {}))
+                )
                 write_json(args.policy, policy.model_dump(mode="json"))
                 _print(
                     {
@@ -303,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
                             Policy(
                                 approved_workflow_digests=[digest(load_workflow(path))]
                             ),
+                            _fixture_demo=True,
                         )
                 if args.kind == "bandlab":
                     from l1ght5p33d.fixtures.bandlab import start_fixture
@@ -329,11 +416,16 @@ def main(argv: list[str] | None = None) -> int:
                                 read_roots=[str(midi_root)],
                                 approved_workflow_digests=[digest(load_workflow(path))],
                             ),
+                            _fixture_demo=True,
                         )
                 from l1ght5p33d.fixtures.windows_demo import run_demo
 
                 return run_demo()
-        service = WorkflowService(args.workflows, load_policy(args.policy))
+        service = WorkflowService(
+            args.workflows,
+            load_policy(args.policy),
+            discovery=load_discovery(args.discovery),
+        )
         if args.command == "list":
             _print(service.list_workflows())
         elif args.command == "rpc":

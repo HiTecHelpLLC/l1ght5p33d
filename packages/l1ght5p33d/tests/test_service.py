@@ -29,6 +29,14 @@ def approved_policy(data):
     return Policy(approved_workflow_digests=[digest(validate_document(data))])
 
 
+def run_approved(service, workflow_id, **kwargs):
+    plan = service.prepare_workflow_run(workflow_id)
+    service.approve_run_plan(
+        plan["plan_id"], plan["plan"]["plan_digest"], local_operator=True
+    )
+    return service.run_workflow(workflow_id, plan_id=plan["plan_id"], **kwargs)
+
+
 def test_policy_paths_and_origins(tmp_path):
     allowed = tmp_path / "assets"
     allowed.mkdir()
@@ -159,7 +167,7 @@ def test_mcp_requires_token_and_defends_origin(tmp_path):
         response = client.post("/mcp", json=body, headers=headers)
         assert response.status_code == 200, response.text
         names = {tool["name"] for tool in response.json()["result"]["tools"]}
-        assert len(names) == 16
+        assert len(names) == 20
         assert {"run_workflow", "run_step", "approve_workflow_patch"} <= names
         result = client.post(
             "/mcp",
@@ -184,7 +192,7 @@ def test_browser_service_step_resume_and_verified_fallback(tmp_path):
         service = WorkflowService(
             tmp_path, approved_policy(data), state_root=tmp_path / "state"
         )
-        run = service.run_workflow("poster-demo", step_mode=True)
+        run = run_approved(service, "poster-demo", step_mode=True)
         run_id = run["run_id"]
         wait_until(
             lambda: (
@@ -259,11 +267,10 @@ def test_credentials_cannot_enter_managed_variables_or_native_bundle(tmp_path):
     # Even an in-process caller bypassing set_workflow_variables is refused
     # before the native engine writes plaintext params or a workflow bundle.
     service.variables["poster-demo"] = {"api_token": "private-credential"}
-    run_id = service.run_workflow("poster-demo")["run_id"]
-    wait_until(lambda: service.get_execution_status(run_id)["done"])
-    assert service.get_execution_status(run_id)["status"] == "halted"
-    assert not (tmp_path / "state" / "runs" / run_id / "bundle").exists()
-    assert not (tmp_path / "state" / "runs" / run_id / "flow").exists()
+    with pytest.raises(ValueError, match="Credential parameters"):
+        service.run_workflow("poster-demo")
+    assert not service.runs
+    assert not (tmp_path / "state" / "runs").exists()
     for artifact in (tmp_path / "state").rglob("*.json"):
         assert "private-credential" not in artifact.read_text("ascii")
 
@@ -304,7 +311,7 @@ def test_secondary_snapshot_failure_keeps_verified_action_and_stale_state(
     )
     provider = Provider()
     monkeypatch.setattr(service, "_provider", lambda _doc: provider)
-    run_id = service.run_workflow("poster-demo")["run_id"]
+    run_id = run_approved(service, "poster-demo")["run_id"]
     wait_until(lambda: service.get_execution_status(run_id)["done"])
     status = service.get_execution_status(run_id)
     assert status["status"] == "completed_ui_verified", status
@@ -333,7 +340,7 @@ def test_rpc_eof_cancels_paused_run_and_closes_provider(tmp_path, monkeypatch):
         tmp_path, approved_policy(data), state_root=tmp_path / "state"
     )
     monkeypatch.setattr(service, "_provider", lambda _doc: provider)
-    run_id = service.run_workflow("poster-demo", step_mode=True)["run_id"]
+    run_id = run_approved(service, "poster-demo", step_mode=True)["run_id"]
     wait_until(lambda: service.get_execution_status(run_id)["control"]["current_step"])
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
     run_json_rpc(service)
