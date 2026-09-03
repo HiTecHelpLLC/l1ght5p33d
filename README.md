@@ -40,9 +40,10 @@ browser test and older pinned runtime, not blanket v0.2.0 compatibility. Hosted
 Ubuntu CI is neither local WSL evidence nor native Linux desktop qualification;
 WSL GUI support is not claimed. See [acceptance and limits](docs/acceptance.md).
 
-The immutable `v0.1.0` release predates this guided companion. Use the current
-checkout for v0.2.0 development; release notes identify the completed checks and
-published assets for each release.
+Download the [v0.2.0 developer preview](https://github.com/HiTecHelpLLC/l1ght5p33d/releases/tag/v0.2.0)
+for this guided companion. Its [release notes](docs/releases/v0.2.0.md) record
+passing Windows/Ubuntu checks and installation evidence. The immutable `v0.1.0`
+tag and assets remain unchanged.
 
 ## Windows quick start
 
