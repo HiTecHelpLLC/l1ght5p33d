@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -102,6 +103,12 @@ def _connect_dedicated(
             "This dedicated profile is open without debugging; close it and retry"
         )
     if launched:
+        if sys.platform == "win32":
+            process_flags = (
+                subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            )
+        else:
+            process_flags = 0
         child = subprocess.Popen(
             [
                 str(binary),
@@ -115,11 +122,7 @@ def _connect_dedicated(
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            creationflags=(
-                subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-            )
-            if os.name == "nt"
-            else 0,
+            creationflags=process_flags,
             close_fds=True,
         )
         process = psutil.Process(child.pid)

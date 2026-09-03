@@ -80,6 +80,12 @@ class WindowsProvider:
         import win32api
         import win32gui
 
+        native_libraries: Any
+        if sys.platform == "win32":
+            native_libraries = ctypes.windll
+        else:
+            raise ProviderRefused("Native window identity requires Windows")
+
         pid = window.process_id()
         hwnd = int(window.handle)
         process = psutil.Process(pid)
@@ -87,7 +93,7 @@ class WindowsProvider:
         monitor_handle = win32api.MonitorFromWindow(hwnd, 2)
         monitor = win32api.GetMonitorInfo(monitor_handle)
         dpi_x, dpi_y = ctypes.c_uint(0), ctypes.c_uint(0)
-        monitor_dpi_function = ctypes.windll.shcore.GetDpiForMonitor
+        monitor_dpi_function = native_libraries.shcore.GetDpiForMonitor
         monitor_dpi_function.argtypes = [
             ctypes.c_void_p,
             ctypes.c_int,
@@ -102,7 +108,7 @@ class WindowsProvider:
             != 0
         ):
             raise ProviderRefused("Cannot inspect monitor DPI")
-        dpi_function = ctypes.windll.user32.GetDpiForWindow
+        dpi_function = native_libraries.user32.GetDpiForWindow
         dpi_function.argtypes = [ctypes.c_void_p]
         dpi_function.restype = ctypes.c_uint
         return WindowIdentity(
