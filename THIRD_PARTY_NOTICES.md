@@ -63,9 +63,9 @@ The GitHub source checkout retains upstream history and its file-local notices.
 | jsonschema | 4.26.0 | MIT | Strict schema validation |
 | MCP Python SDK | 2.1.1 | MIT | Local MCP transport |
 | Uvicorn | 0.52.4 | BSD-3-Clause | Loopback HTTP service |
-| HTTPX | 0.28.1 | BSD-3-Clause | Local fixture checks |
+| HTTPX | 0.28.1 | BSD-3-Clause | Local fixture checks and bounded catalog/pack downloads |
 | psutil | 7.2.2 | BSD-3-Clause | Exact process identity |
-| cryptography | 50.0.1 | Apache-2.0 OR BSD-3-Clause | Ed25519 workflow-catalog signatures |
+| cryptography | 50.0.1 | Apache-2.0 OR BSD-3-Clause | Ed25519 catalog and detached curator signatures |
 
 OpenCV, RapidOCR/ONNX Runtime, Pillow, NumPy and other transitive components
 are resolved in packages/l1ght5p33d/uv.lock. Distribution-level license metadata
@@ -87,3 +87,19 @@ Optional peer-to-peer workflow retrieval uses a separately installed
 loopback HTTP API. No Kubo executable or IPFS source is bundled. THEBEST registry
 integration files under `integrations/thebest` are original MIT contributions;
 they do not include the THEBEST site's existing proprietary application code.
+
+## Curated workflow pack schema and verification
+
+`packages/l1ght5p33d/src/l1ght5p33d/packs.py` embeds the entry schema and adapts
+focused attestation checks from the MIT-licensed
+[L1ght5p33d workflow library](https://github.com/HiTecHelpLLC/l1ght5p33d-workflows/tree/0759faca55e5ae79194e08f6c472a197644eabde),
+specifically `schemas/entry.schema.json` and `scripts/attest.py` at that revision.
+The retained notices are:
+
+- Copyright (c) 2026 OpenAdapt.AI (MLDSAI Inc.)
+- Copyright (c) 2026 L1ght5p33d contributors (downstream additions)
+
+The complete MIT terms are retained in this repository's [LICENSE](LICENSE).
+The public library's individual packs keep their own exact license, attribution,
+source and review evidence. Downloading a pack does not install its repository's
+scripts or executable providers.
