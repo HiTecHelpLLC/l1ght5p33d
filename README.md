@@ -4,6 +4,11 @@
 
 **Create, discover, adapt, combine and run reusable computer workflows.**
 
+L1ght5p33d is a **Windows-first local execution companion for AI**, currently a
+developer preview. The next product milestone is one complete guided experience:
+find a reviewed workflow, verify its exact version, show every proposed step,
+obtain the user's approval, execute locally, and report the verified outcome.
+
 L1ght5p33d extends OpenAdapt Flow with a local workflow library, application
 adapters and controls for people and AI systems. It handles repetitive work in
 browsers and Windows desktop software. AI helps author, find, parameterize,
@@ -22,11 +27,25 @@ is included for operator deployment. Existing SoundFlow, REAPER or n8n recipes
 still require their own runner or an explicit integration. See
 [creating and sharing a workflow library](docs/workflow-library.md).
 
+The separate [curated workflow library](https://github.com/HiTecHelpLLC/l1ght5p33d-workflows)
+contains one signed browser fixture workflow. Its detached THEBEST review
+attestations are not yet consumed by runtime discovery. Connecting that review
+evidence to the execution plan is the immediate integration priority. THEBEST
+currently has a local registry draft; a public product page and active registry
+have not been published. See the [product refinement milestone](docs/ROADMAP.md#next-product-milestone).
+
 **v0.1.0 developer preview, Windows 11 first.** Production-oriented controls are
 implemented, but this is not a blanket production qualification. The complete
 BandLab path is tested against a local functional fixture; live Studio selectors
 still need operator calibration. Native input requires an interactive foreground
 window. See [acceptance and limits](docs/acceptance.md).
+
+The current `main` branch includes the complete per-run approval interface added
+after the immutable `v0.1.0` release. Those release assets do not contain the new
+interface, although the development package still reports `0.1.0`. Use this
+checkout's installer for current development; the next release needs a distinct
+version and matching workflow qualification. Hosted Ubuntu CI results describe
+automated checks, not native Linux desktop support or WSL GUI qualification.
 
 ## Windows quick start
 
@@ -184,7 +203,7 @@ cd packages\l1ght5p33d
 .\.venv\Scripts\mypy.exe
 ```
 
-Windows/Linux CI runs tests, real browser fixtures, clean-wheel first runs,
+GitHub-hosted Windows/Ubuntu CI runs tests, real browser fixtures, clean-wheel first runs,
 formatting, typing, Gitleaks, vulnerability/license scans, and actual archive
 inspection. Interactive native input has a separate qualification command.
 Upstream deployment workflows are preserved in `.github/upstream-workflows`.

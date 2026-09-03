@@ -17,7 +17,7 @@ not claim to requalify every inherited OpenAdapt target or hosted service.
 | Non-BandLab browser | Local poster editor with role/label selectors and fallback |
 | Non-BandLab Windows | Packaged WinForms creative fixture and UIA/vision contracts |
 | Reproducible installation | Direct pins, transitive lock, real wheel/sdist and clean-wheel first runs |
-| Quality/security | Windows/Linux CI tests, formatting/types, secret/dependency/license scans |
+| Quality/security | GitHub-hosted Windows/Ubuntu CI tests, formatting/types, secret/dependency/license scans |
 | Optional shared workflow discovery | Signed catalog, key pinning, expiry, exact version, schema and byte limits |
 | Actual P2P transport | Two isolated Kubo peers; HTTP catalog discovery and CLI install; no execution grant |
 | THEBEST register integration | Default-disabled PHP route; synthetic signature/schema/request tests |
@@ -29,8 +29,15 @@ activation; input was skipped instead of weakening the check. Run
 `l1ght5p33d demo windows` and focus the harmless fixture. See [windows.md](windows.md).
 
 GitHub's Windows runner is Windows Server, not a clean Windows 11 VM. Fresh package
-installation is tested on Windows/Linux CI; qualification on another physical
-Windows 11 machine remains a matrix item. Python 3.12 and Git are prerequisites.
+installation is tested on GitHub-hosted Windows/Ubuntu CI; qualification on
+another physical Windows 11 machine remains a matrix item. Python 3.12 and Git
+are prerequisites.
+
+The curated workflow library's local signed evidence covers only the synthetic
+browser fixture on Windows 11. Ubuntu CI results cover the checks and browser
+fixtures run on GitHub's hosted runner; they are neither local WSL evidence nor
+native Linux desktop qualification. WSL GUI support is not claimed. Native
+Windows input and live BandLab qualification remain pending.
 
 No live BandLab login or import was attempted during initial development. Fixture
 evidence is not live evidence. Normal user login and reviewed current selectors

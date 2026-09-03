@@ -6,6 +6,46 @@ L1ght5p33d is a general foundation for creating, discovering, adapting, combinin
 and running reusable computer workflows. BandLab is the first application
 reference; the workflow library and provider contracts serve other applications.
 
+## Next product milestone
+
+**An AI discovers a THEBEST-reviewed creator workflow, verifies the exact pack,
+checks the local environment, shows the complete plan, obtains human approval,
+executes it on Windows and returns a verified result or actionable recovery.**
+
+The existing OpenAdapt Flow foundation remains useful. The immediate work is to
+connect the implemented components and qualify a real creator outcome:
+
+1. Unify delivery of workflow bytes, review metadata and signed test evidence.
+   The public curated library currently uses a separate index/attestation format;
+   the runtime's catalog downloader does not consume that curator attestation.
+   Carry author identity, curator review scope and local execution approval as
+   separate facts through discovery, staging and the final run plan.
+2. Provide a guided local review/run experience. Users should supply their goal
+   and necessary inputs, then inspect the actual steps and approve. Catalog/key
+   setup, Kubo configuration and SDK recovery should not be the ordinary user
+   journey. Preserve explicit approval and fail closed when goals are ambiguous.
+3. Qualify the original BandLab task in an authorized live session: import at
+   least one synthetic MIDI, verify its track/region and saved state, and document
+   recovery from an interrupted import. The admitted poster example is a test
+   fixture, not evidence of a completed everyday creator task.
+4. Release a distinct runtime version containing the newer per-run approval
+   controls and qualify the library against it. Current `main` and immutable
+   `v0.1.0` assets have different capabilities while sharing a package version.
+5. Give the product a front-facing THEBEST page with a clear Windows installation
+   path, reviewed workflow examples, source links and precise maturity labels.
+   The website explains and distributes; the installed companion owns local
+   execution and approval. Apply THEBEST's visual-design and publication process.
+6. Connect the public register and optional P2P delivery after the exact-pack
+   verification path works. Define hosting/pinning availability, key rotation,
+   revocation and stale application compatibility before broad distribution.
+
+Keep scope Windows-first. Local Windows 11 fixture evidence, hosted Windows
+Server/Ubuntu CI and WSL are distinct environments. Neither headless Ubuntu CI
+nor access to WSL establishes native Linux desktop automation support.
+
+These are refinement priorities, not claims that the guided product or public
+register already exists. No new execution engine is needed for this milestone.
+
 ## Current developer preview
 
 - Native OpenAdapt Flow workflows inside strict ASCII JSON registry envelopes.
