@@ -1,10 +1,12 @@
-"""Harmless local poster fixture with semantic controls and durable readback."""
+"""Harmless local poster fixture with semantic controls and optional disk save."""
 
 from __future__ import annotations
 
 import json
 from contextlib import contextmanager
+from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from threading import Thread
 from typing import Iterator
 
@@ -20,10 +22,16 @@ saved.value=r.ok?'Saved':'Save failed';preview.textContent=poster_title.value;};
 
 
 @contextmanager
-def serve_creative_fixture(*, port: int = 0) -> Iterator[str]:
+def serve_creative_fixture(
+    *, port: int = 0, output_dir: Path | None = None
+) -> Iterator[str]:
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError("Fixture port must be an integer from 0 to 65535")
     state: dict[str, str] = {}
+    if output_dir is not None:
+        # Only the local test operator supplies this directory, never the browser.
+        output_dir = output_dir.resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args: object) -> None:
@@ -41,11 +49,40 @@ def serve_creative_fixture(*, port: int = 0) -> Iterator[str]:
             self.wfile.write(body)
 
         def do_POST(self) -> None:
-            size = int(self.headers.get("Content-Length", "0"))
-            if self.path != "/save" or size > 4096:
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
                 self.send_error(400)
                 return
-            state.update(json.loads(self.rfile.read(size)))
+            if self.path != "/save" or not 0 < size <= 4096:
+                self.send_error(400)
+                return
+            try:
+                candidate = json.loads(self.rfile.read(size))
+                if (
+                    not isinstance(candidate, dict)
+                    or set(candidate) != {"poster_title", "palette"}
+                    or not isinstance(candidate["poster_title"], str)
+                    or candidate["palette"] not in ("Ocean", "Sunset")
+                ):
+                    raise ValueError("Invalid poster")
+                if output_dir is not None:
+                    color = "#913f56" if candidate["palette"] == "Sunset" else "#194849"
+                    svg = (
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">'
+                        f'<rect width="1200" height="630" fill="{color}"/>'
+                        '<text x="60" y="320" fill="white" font-size="48" '
+                        'font-family="sans-serif">'
+                        f"{escape(candidate['poster_title'])}</text></svg>"
+                    )
+                    (output_dir / "poster.svg").write_text(svg, encoding="utf-8")
+                    (output_dir / "poster.json").write_text(
+                        json.dumps(candidate, indent=2) + "\n", encoding="ascii"
+                    )
+            except (ValueError, OSError):
+                self.send_error(400, "Poster could not be saved")
+                return
+            state.update(candidate)
             self.send_response(204)
             self.end_headers()
 
